@@ -28,7 +28,9 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release --base-href /kana-quiz/
+      # Sans service worker : le site se met à jour au premier rechargement,
+      # au lieu de servir l'ancienne version depuis son propre cache.
+      - run: flutter build web --release --base-href /kana-quiz/ --pwa-strategy=none
 
       - uses: actions/upload-pages-artifact@v3
         with:
