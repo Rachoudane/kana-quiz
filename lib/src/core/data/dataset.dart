@@ -27,8 +27,8 @@ class Dataset {
   }
 
   static Future<Dataset> _load() async {
-    final vocabRaw = await rootBundle.loadString('assets/data/vocab_n5.json');
-    final kanjiRaw = await rootBundle.loadString('assets/data/kanji_n5.json');
+    final vocabRaw = await rootBundle.loadString('assets/data/vocab.json');
+    final kanjiRaw = await rootBundle.loadString('assets/data/kanji.json');
     final vocabJson = jsonDecode(vocabRaw) as Map<String, dynamic>;
     final kanjiJson = jsonDecode(kanjiRaw) as Map<String, dynamic>;
 
@@ -50,11 +50,16 @@ class Dataset {
 
   VocabWord? wordById(String id) => _wordsById[id];
 
-  List<VocabWord> wordsByScript(String script) => script == 'all'
-      ? words
-      : words.where((w) => w.script == script).toList();
+  /// Mots filtrés par écriture et par niveau minimum (5 = N5 seul).
+  List<VocabWord> select({String script = 'all', int fromLevel = 5}) => words
+      .where((w) => w.level >= fromLevel)
+      .where((w) => script == 'all' || w.script == script)
+      .toList();
 
-  int get katakanaCount => words.where((w) => w.script == 'katakana').length;
+  int katakanaCount({int fromLevel = 5}) =>
+      select(script: 'katakana', fromLevel: fromLevel).length;
 
-  int get coreKanjiCount => kanji.where((k) => k.core).length;
+  int wordCount({int fromLevel = 5}) => select(fromLevel: fromLevel).length;
+
+  int get n5KanjiCount => kanji.where((k) => k.isN5).length;
 }

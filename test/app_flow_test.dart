@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/app/app.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
+import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
 import 'package:kana_quiz/src/core/storage/progress_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,6 +69,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kana Quiz'), findsOneWidget);
+  });
+
+  testWidgets('une bonne réponse affiche la fiche du mot', (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    final prompt = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+    final word = dataset.words.firstWhere((w) => w.kana == prompt);
+
+    await tester.enterText(
+      find.byType(TextField),
+      RomajiReading(prompt).reference,
+    );
+    await advance(tester);
+
+    // La fiche montre le sens français, le sens anglais, et l'exemple sur
+    // deux lignes : écriture normale puis lecture en kana.
+    expect(find.text(word.fr), findsOneWidget);
+    expect(find.text(word.en), findsOneWidget);
+    if (word.examples.isNotEmpty) {
+      expect(find.text(word.examples.first.jp), findsOneWidget);
+      expect(find.text(word.examples.first.kana), findsOneWidget);
+    }
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('les réglages expliquent les graphies acceptées',

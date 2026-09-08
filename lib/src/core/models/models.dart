@@ -1,13 +1,21 @@
 import '../romaji/romaji_reading.dart';
 
-/// Phrase d'exemple, japonais + traduction anglaise.
+/// Phrase d'exemple : l'originale, la même en kana, et sa traduction.
 class Example {
-  const Example(this.jp, this.en);
+  const Example(this.jp, this.kana, this.en);
 
-  factory Example.fromJson(Map<String, dynamic> json) =>
-      Example(json['jp'] as String, json['en'] as String);
+  factory Example.fromJson(Map<String, dynamic> json) => Example(
+        json['jp'] as String,
+        json['kana'] as String,
+        json['en'] as String,
+      );
 
+  /// Phrase telle qu'elle s'écrit, avec ses kanji.
   final String jp;
+
+  /// La même phrase entièrement en kana, pour pouvoir la lire.
+  final String kana;
+
   final String en;
 }
 
@@ -18,7 +26,9 @@ class VocabWord {
     required this.kana,
     required this.word,
     required this.forms,
-    required this.meaning,
+    required this.level,
+    required this.fr,
+    required this.en,
     required this.script,
     required this.examples,
   });
@@ -28,7 +38,9 @@ class VocabWord {
         kana: json['kana'] as String,
         word: json['word'] as String,
         forms: (json['forms'] as List?)?.cast<String>() ?? const [],
-        meaning: json['meaning'] as String,
+        level: json['level'] as int,
+        fr: json['fr'] as String,
+        en: json['en'] as String,
         script: json['script'] as String,
         examples: (json['examples'] as List?)
                 ?.map((e) => Example.fromJson(e as Map<String, dynamic>))
@@ -46,7 +58,12 @@ class VocabWord {
 
   /// Autres écritures rencontrées pour la même lecture.
   final List<String> forms;
-  final String meaning;
+
+  /// Niveau JLPT : 5 pour N5, 4 pour N4, 3 pour N3.
+  final int level;
+
+  final String fr;
+  final String en;
 
   /// `hiragana` ou `katakana`, d'après la lecture.
   final String script;
@@ -64,7 +81,7 @@ class KanjiEntry {
     required this.meanings,
     required this.strokes,
     required this.grade,
-    required this.core,
+    required this.jlpt,
     required this.wordIds,
   });
 
@@ -75,7 +92,7 @@ class KanjiEntry {
         meanings: (json['meanings'] as List).cast<String>(),
         strokes: json['strokes'] as int?,
         grade: json['grade'] as int?,
-        core: json['core'] as bool? ?? false,
+        jlpt: json['jlpt'] as int?,
         wordIds: (json['words'] as List?)?.cast<String>() ?? const [],
       );
 
@@ -86,9 +103,11 @@ class KanjiEntry {
   final int? strokes;
   final int? grade;
 
-  /// Vrai pour les kanji du noyau N5.
-  final bool core;
+  /// Niveau JLPT du kanji, `null` s'il est hors des listes N5 à N3.
+  final int? jlpt;
   final List<String> wordIds;
+
+  bool get isN5 => jlpt == 5;
 }
 
 /// Une question, indépendante du mode qui l'a produite.
@@ -98,7 +117,8 @@ class QuizItem {
     required this.prompt,
     required this.promptScript,
     required this.readings,
-    required this.meaning,
+    required this.fr,
+    required this.en,
     this.secondary,
     this.detail,
     this.examples = const [],
@@ -116,7 +136,9 @@ class QuizItem {
   /// Lectures acceptées. La première fournit la graphie de référence.
   final List<RomajiReading> readings;
 
-  final String meaning;
+  /// Sens en français, puis en anglais.
+  final String fr;
+  final String en;
 
   /// Écriture complémentaire montrée après coup (kanji du mot).
   final String? secondary;
@@ -147,16 +169,5 @@ class QuizItem {
       if (state == AnswerState.partial) best = AnswerState.partial;
     }
     return best;
-  }
-
-  /// Lecture attendue la plus proche de la saisie, pour l'affichage de la
-  /// correction quand plusieurs lectures sont acceptées.
-  String closestReference(String input) {
-    final normalized = RomajiReading.normalize(input);
-    if (normalized.isEmpty) return reference;
-    for (final reading in readings) {
-      if (reading.reference.startsWith(normalized[0])) return reading.reference;
-    }
-    return reference;
   }
 }

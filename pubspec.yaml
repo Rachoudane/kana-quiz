@@ -20,3 +20,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/data/
+  fonts:
+    - family: NotoSansJP
+      fonts:
+        - asset: assets/fonts/NotoSansJP-Regular.otf

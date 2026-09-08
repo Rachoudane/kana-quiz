@@ -28,15 +28,12 @@ class KanjiReadingMode extends QuizMode {
   @override
   List<ModeOption> get options => const [
         ModeOption(
-          id: 'deck',
-          label: 'Liste',
+          id: 'level',
+          label: 'Niveau',
           choices: [
-            ModeChoice('core', 'Noyau N5', hint: 'Les kanji exigés au N5'),
-            ModeChoice(
-              'vocab',
-              'Tous ceux du vocabulaire N5',
-              hint: 'Tout kanji croisé dans les mots N5',
-            ),
+            ModeChoice('5', 'N5', hint: 'Les 79 kanji du programme N5'),
+            ModeChoice('4', 'N5 + N4'),
+            ModeChoice('3', 'N5 + N4 + N3'),
           ],
         ),
         ModeOption(
@@ -52,14 +49,12 @@ class KanjiReadingMode extends QuizMode {
 
   @override
   List<QuizItem> buildItems(Dataset data, Map<String, String> config) {
-    final deck = config['deck'] ?? 'core';
+    final fromLevel = int.tryParse(config['level'] ?? '5') ?? 5;
     final readingType = config['readings'] ?? 'any';
-    final entries = deck == 'core'
-        ? data.kanji.where((k) => k.core).toList()
-        : data.kanji;
 
     final items = <QuizItem>[];
-    for (final entry in entries) {
+    for (final entry in data.kanji) {
+      if ((entry.jlpt ?? 0) < fromLevel) continue;
       final readings = switch (readingType) {
         'on' => entry.on,
         'kun' => entry.kun,
@@ -67,10 +62,8 @@ class KanjiReadingMode extends QuizMode {
       };
       if (readings.isEmpty) continue;
 
-      final related = entry.wordIds
-          .map(data.wordById)
-          .whereType<VocabWord>()
-          .toList();
+      final related =
+          entry.wordIds.map(data.wordById).whereType<VocabWord>().toList();
 
       items.add(
         QuizItem(
@@ -78,8 +71,8 @@ class KanjiReadingMode extends QuizMode {
           prompt: entry.kanji,
           promptScript: 'kanji',
           readings: readings.map(RomajiReading.of).toList(),
-          meaning: entry.meanings.join(', '),
-          secondary: null,
+          fr: related.isNotEmpty ? related.first.fr : '',
+          en: entry.meanings.join(', '),
           detail: _detail(entry),
           examples: related.isNotEmpty ? related.first.examples : const [],
           related: related,

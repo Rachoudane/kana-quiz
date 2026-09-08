@@ -25,6 +25,15 @@ class KanaReadingMode extends QuizMode {
   @override
   List<ModeOption> get options => const [
         ModeOption(
+          id: 'level',
+          label: 'Niveau',
+          choices: [
+            ModeChoice('5', 'N5'),
+            ModeChoice('4', 'N5 + N4'),
+            ModeChoice('3', 'N5 + N4 + N3'),
+          ],
+        ),
+        ModeOption(
           id: 'script',
           label: 'Écriture',
           choices: [
@@ -37,8 +46,10 @@ class KanaReadingMode extends QuizMode {
 
   @override
   List<QuizItem> buildItems(Dataset data, Map<String, String> config) {
-    final script = config['script'] ?? 'all';
-    final words = data.wordsByScript(script);
+    final words = data.select(
+      script: config['script'] ?? 'all',
+      fromLevel: int.tryParse(config['level'] ?? '5') ?? 5,
+    );
     return shuffled(words).map(_toItem).toList();
   }
 
@@ -47,7 +58,8 @@ class KanaReadingMode extends QuizMode {
         prompt: word.kana,
         promptScript: word.script,
         readings: [RomajiReading.of(word.kana)],
-        meaning: word.meaning,
+        fr: word.fr,
+        en: word.en,
         secondary: word.hasKanjiForm ? word.word : null,
         detail: word.forms.length > 1 ? word.forms.skip(1).join(' · ') : null,
         examples: word.examples,

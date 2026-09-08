@@ -256,9 +256,12 @@ class _HomePageState extends State<HomePage> {
   Widget _dataFootprint(BuildContext context) {
     final theme = Theme.of(context);
     final data = AppScope.of(context).dataset;
+    final level = int.tryParse(_config['level'] ?? '5') ?? 5;
+    final total = data.wordCount(fromLevel: level);
+    final katakana = data.katakanaCount(fromLevel: level);
     return Text(
-      '${data.words.length} mots N5 (${data.katakanaCount} en katakana) · '
-      '${data.coreKanjiCount} kanji du noyau N5.',
+      '$total mots dans cette sélection, dont $katakana en katakana · '
+      '${data.kanji.length} kanji.',
       textAlign: TextAlign.center,
       style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),

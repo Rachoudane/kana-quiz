@@ -71,6 +71,9 @@ class StatTile extends StatelessWidget {
 }
 
 /// Fiche affichée après une réponse : lecture, écriture, sens, exemple.
+///
+/// La phrase d'exemple est donnée deux fois, avec ses kanji puis entièrement
+/// en kana : à ce niveau la première ligne n'est pas lisible seule.
 class ItemRevealCard extends StatelessWidget {
   const ItemRevealCard({
     super.key,
@@ -138,20 +141,26 @@ class ItemRevealCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.meaning,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 5),
+                  if (item.fr.isNotEmpty)
+                    Text(
+                      item.fr,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                  ),
+                  if (item.en.isNotEmpty)
+                    Text(
+                      item.en,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   if (item.detail != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       item.detail!,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
-                        fontFamilyFallback: japaneseFallback,
                       ),
                     ),
                   ],
@@ -173,48 +182,67 @@ class ItemRevealCard extends StatelessWidget {
                           .take(3)
                           .map((w) => '${w.word}（${w.kana}）')
                           .join('   '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamilyFallback: japaneseFallback,
+                      style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                   if (example != null && !dense) ...[
                     const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            example.jp,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontFamilyFallback: japaneseFallback,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            example.en,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ExampleBlock(example: example),
                   ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Une phrase d'exemple : écriture normale, lecture en kana, traduction.
+class ExampleBlock extends StatelessWidget {
+  const ExampleBlock({super.key, required this.example});
+
+  final Example example;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            example.jp,
+            style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            example.kana,
+            style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
+              height: 1.5,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            example.en,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
   }

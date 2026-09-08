@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// Polices de repli pour le japonais : la première disponible sur la machine
-/// est utilisée, sinon le moteur de rendu télécharge un Noto équivalent.
+/// Police japonaise embarquée (assets/fonts), suivie des polices système au
+/// cas où un caractère manquerait au sous-ensemble.
 const List<String> japaneseFallback = [
-  'Noto Sans JP',
+  'NotoSansJP',
   'Hiragino Kaku Gothic ProN',
   'Yu Gothic',
   'Meiryo',
-  'MS Gothic',
   'sans-serif',
 ];
 
@@ -67,13 +66,16 @@ ThemeData buildTheme(Brightness brightness) {
 
 /// Style des kana et kanji affichés en grand.
 TextStyle promptStyle(BuildContext context, double size) => TextStyle(
+      fontFamily: 'NotoSansJP',
       fontSize: size,
       height: 1.1,
-      fontWeight: FontWeight.w500,
       letterSpacing: 2,
-      fontFamilyFallback: japaneseFallback,
       color: Theme.of(context).colorScheme.onSurface,
     );
+
+/// Style des textes japonais courants (phrases d'exemple, lectures).
+TextStyle japaneseStyle(TextStyle? base) =>
+    (base ?? const TextStyle()).copyWith(fontFamily: 'NotoSansJP');
 
 /// Style monospace pour les rōmaji, pour que les graphies s'alignent.
 const TextStyle romajiStyle = TextStyle(

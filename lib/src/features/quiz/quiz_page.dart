@@ -225,8 +225,12 @@ class _QuizPageState extends State<QuizPage> {
             fit: BoxFit.scaleDown,
             child: Text(
               item.prompt,
+              key: const Key('prompt'),
               textAlign: TextAlign.center,
-              style: promptStyle(context, item.prompt.characters.length > 6 ? 56 : 76),
+              style: promptStyle(
+                context,
+                item.prompt.characters.length > 6 ? 56 : 76,
+              ),
             ),
           ),
           const SizedBox(height: 28),
@@ -302,7 +306,7 @@ class _QuizPageState extends State<QuizPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            item.meaning,
+            item.fr.isNotEmpty ? item.fr : item.en,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

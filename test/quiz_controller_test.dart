@@ -18,11 +18,13 @@ void main() {
     store = await ProgressStore.open();
   });
 
+  const kanaConfig = {'level': '5', 'script': 'all'};
+
   QuizController build({int duration = 600}) => QuizController(
         mode: const KanaReadingMode(),
-        config: const {'script': 'all'},
+        config: kanaConfig,
         durationSeconds: duration,
-        items: const KanaReadingMode().buildItems(data, {'script': 'all'}),
+        items: const KanaReadingMode().buildItems(data, kanaConfig),
         store: store,
       );
 
@@ -140,7 +142,7 @@ void main() {
 
   test('le mode kanji accepte n\'importe quelle lecture', () {
     final items = const KanjiReadingMode()
-        .buildItems(data, const {'deck': 'core', 'readings': 'any'});
+        .buildItems(data, const {'level': '5', 'readings': 'any'});
     final item = items.firstWhere((i) => i.readings.length > 1);
     for (final reading in item.readings) {
       expect(item.evaluate(reading.reference), AnswerState.complete,

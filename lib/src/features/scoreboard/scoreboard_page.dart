@@ -192,7 +192,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                 label: Text(
                   '${_label(data, entry.key)} · ${entry.value.missed}',
                   style: TextStyle(
-                    fontFamilyFallback: japaneseFallback,
+                    fontFamily: 'NotoSansJP',
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
