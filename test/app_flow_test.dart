@@ -100,6 +100,27 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('le champ récupère le focus si on clique ailleurs',
+      (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    final field = find.byType(TextField);
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
+    tester.widget<TextField>(field).focusNode!.unfocus();
+    await tester.pump();
+    await tester.tapAt(const Offset(40, 500));
+    await tester.pump();
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('rien ne signale la direction pendant la frappe',
       (tester) async {
     await pumpApp(tester);

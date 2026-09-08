@@ -51,6 +51,10 @@ class _QuizPageState extends State<QuizPage> {
 
   void _onQuizChanged() {
     if (_quiz.input.isEmpty && _field.text.isNotEmpty) _field.clear();
+    // Le chrono tourne : le champ ne doit jamais rester sans le curseur.
+    if (_quiz.phase == QuizPhase.running && !_focus.hasFocus) {
+      _focus.requestFocus();
+    }
     if (_quiz.phase == QuizPhase.finished && !_navigated) {
       _navigated = true;
       if (_quiz.result == null) {
@@ -76,7 +80,12 @@ class _QuizPageState extends State<QuizPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: ListenableBuilder(
+        // Un clic n'importe où rend la main au champ : sinon les frappes
+        // partent dans le vide pendant que le chrono continue.
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: _focus.requestFocus,
+          child: ListenableBuilder(
           listenable: _quiz,
           builder: (context, _) {
             return LayoutBuilder(
@@ -122,9 +131,10 @@ class _QuizPageState extends State<QuizPage> {
                     ),
                   ],
                 );
-              },
-            );
-          },
+                },
+              );
+            },
+          ),
         ),
       ),
     );
