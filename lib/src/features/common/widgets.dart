@@ -226,14 +226,18 @@ class ExampleBlock extends StatelessWidget {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            example.kana,
-            style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
-              height: 1.5,
-              color: theme.colorScheme.primary,
+          // Une phrase sans kanji se lit déjà telle quelle : la répéter en
+          // kana n'apprend rien et fait croire à deux phrases.
+          if (example.kana != example.jp) ...[
+            const SizedBox(height: 3),
+            Text(
+              example.kana,
+              style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
+                height: 1.5,
+                color: theme.colorScheme.primary,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 3),
           Text(
             example.en,
