@@ -73,6 +73,7 @@ Régénérer les jeux de données et la police :
 pip install fugashi unidic-lite fonttools
 python tool/build_data.py    # assets/data/vocab.json, assets/data/kanji.json
 python tool/build_fonts.py   # assets/fonts/NotoSansJP-Regular.otf
+python tool/build_icon.py    # web/favicon.png, web/icons/
 ```
 
 Les scripts téléchargent leurs sources et les mettent en cache dans
