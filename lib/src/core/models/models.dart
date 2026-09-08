@@ -1,0 +1,162 @@
+import '../romaji/romaji_reading.dart';
+
+/// Phrase d'exemple, japonais + traduction anglaise.
+class Example {
+  const Example(this.jp, this.en);
+
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      Example(json['jp'] as String, json['en'] as String);
+
+  final String jp;
+  final String en;
+}
+
+/// Un mot du vocabulaire.
+class VocabWord {
+  const VocabWord({
+    required this.id,
+    required this.kana,
+    required this.word,
+    required this.forms,
+    required this.meaning,
+    required this.script,
+    required this.examples,
+  });
+
+  factory VocabWord.fromJson(Map<String, dynamic> json) => VocabWord(
+        id: json['id'] as String,
+        kana: json['kana'] as String,
+        word: json['word'] as String,
+        forms: (json['forms'] as List?)?.cast<String>() ?? const [],
+        meaning: json['meaning'] as String,
+        script: json['script'] as String,
+        examples: (json['examples'] as List?)
+                ?.map((e) => Example.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+      );
+
+  final String id;
+
+  /// Lecture en kana : c'est ce que l'on affiche et ce que l'on lit.
+  final String kana;
+
+  /// Écriture usuelle (kanji ou katakana).
+  final String word;
+
+  /// Autres écritures rencontrées pour la même lecture.
+  final List<String> forms;
+  final String meaning;
+
+  /// `hiragana` ou `katakana`, d'après la lecture.
+  final String script;
+  final List<Example> examples;
+
+  bool get hasKanjiForm => word != kana;
+}
+
+/// Un kanji et ses lectures.
+class KanjiEntry {
+  const KanjiEntry({
+    required this.kanji,
+    required this.on,
+    required this.kun,
+    required this.meanings,
+    required this.strokes,
+    required this.grade,
+    required this.core,
+    required this.wordIds,
+  });
+
+  factory KanjiEntry.fromJson(Map<String, dynamic> json) => KanjiEntry(
+        kanji: json['kanji'] as String,
+        on: (json['on'] as List).cast<String>(),
+        kun: (json['kun'] as List).cast<String>(),
+        meanings: (json['meanings'] as List).cast<String>(),
+        strokes: json['strokes'] as int?,
+        grade: json['grade'] as int?,
+        core: json['core'] as bool? ?? false,
+        wordIds: (json['words'] as List?)?.cast<String>() ?? const [],
+      );
+
+  final String kanji;
+  final List<String> on;
+  final List<String> kun;
+  final List<String> meanings;
+  final int? strokes;
+  final int? grade;
+
+  /// Vrai pour les kanji du noyau N5.
+  final bool core;
+  final List<String> wordIds;
+}
+
+/// Une question, indépendante du mode qui l'a produite.
+class QuizItem {
+  QuizItem({
+    required this.id,
+    required this.prompt,
+    required this.promptScript,
+    required this.readings,
+    required this.meaning,
+    this.secondary,
+    this.detail,
+    this.examples = const [],
+    this.related = const [],
+  });
+
+  final String id;
+
+  /// Ce qui est affiché en grand.
+  final String prompt;
+
+  /// `hiragana`, `katakana` ou `kanji` : sert à l'affichage.
+  final String promptScript;
+
+  /// Lectures acceptées. La première fournit la graphie de référence.
+  final List<RomajiReading> readings;
+
+  final String meaning;
+
+  /// Écriture complémentaire montrée après coup (kanji du mot).
+  final String? secondary;
+
+  /// Ligne d'information supplémentaire (lectures on/kun d'un kanji…).
+  final String? detail;
+
+  final List<Example> examples;
+
+  /// Mots du vocabulaire rattachés (utilisé par le mode kanji).
+  final List<VocabWord> related;
+
+  String get reference => readings.first.reference;
+
+  List<String> get alternates => readings.first.alternates;
+
+  /// Toutes les lectures de référence, pour les kanji à plusieurs lectures.
+  List<String> get allReferences =>
+      readings.map((r) => r.reference).toSet().toList();
+
+  /// Évalue une saisie contre toutes les lectures acceptées.
+  AnswerState evaluate(String input) {
+    var best = AnswerState.invalid;
+    for (final reading in readings) {
+      final state = reading.evaluate(input);
+      if (state == AnswerState.complete) return AnswerState.complete;
+      if (state == AnswerState.empty) return AnswerState.empty;
+      if (state == AnswerState.partial) best = AnswerState.partial;
+    }
+    return best;
+  }
+
+  /// Lecture attendue la plus proche de la saisie, pour l'affichage de la
+  /// correction quand plusieurs lectures sont acceptées.
+  String closestReference(String input) {
+    final normalized = RomajiReading.normalize(input);
+    if (normalized.isEmpty) return reference;
+    for (final reading in readings) {
+      if (reading.reference.startsWith(normalized[0])) return reading.reference;
+    }
+    return reference;
+  }
+}
