@@ -48,6 +48,21 @@ void main() {
     }
   });
 
+  test('l\'écriture d\'un verbe en する garde son する', () {
+    // する seul est un mot à part, pas un verbe composé.
+    final suru = data.words
+        .where((w) => w.kana.length > 2 && w.kana.endsWith('する'))
+        .toList();
+    expect(suru.length, greaterThan(30));
+    for (final word in suru) {
+      expect(
+        word.word.endsWith('する'),
+        isTrue,
+        reason: '${word.kana} écrit « ${word.word} »',
+      );
+    }
+  });
+
   test('chaque lecture se transcrit et se relit', () {
     for (final word in data.words) {
       final reading = RomajiReading(word.kana);

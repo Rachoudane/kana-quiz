@@ -149,56 +149,91 @@ def jmdict_url(lang):
 
 
 def load_jmdict(lang):
-    """Index (écriture, lecture) -> glosses, et lecture -> glosses."""
+    """Index (écriture, lecture) -> identifiants, lecture -> identifiants, et
+    identifiant -> (courant, sens).
+
+    Les sens gardent leur position d'origine, y compris ceux qui sont écartés,
+    remplacés par une liste vide. C'est cette position qui permet ensuite de
+    lire le français au même sens que l'anglais.
+    """
     url, name = jmdict_url(lang)
     raw = fetch(url, name, binary=True)
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tar:
         member = next(m for m in tar.getmembers() if m.name.endswith(".json"))
         data = json.load(tar.extractfile(member))
 
+    entries = {}
     by_pair = {}
     by_kana = {}
     for entry in data["words"]:
-        glosses = []
+        senses = []
         for sense in entry["sense"]:
             if set(sense.get("misc") or []) & SKIP_MISC:
+                senses.append([])
                 continue
-            texts = [g["text"] for g in sense["gloss"]]
-            if texts:
-                glosses.append(texts)
-        if not glosses:
+            senses.append([g["text"] for g in sense["gloss"]])
+        if not any(senses):
             continue
         common = any(k.get("common") for k in entry["kana"]) or any(
             k.get("common") for k in entry["kanji"]
         )
         kanas = [k["text"] for k in entry["kana"]]
         kanjis = [k["text"] for k in entry["kanji"]]
-        record = (common, glosses)
+        entries[entry["id"]] = (common, senses)
         for kana in kanas:
-            by_kana.setdefault(kana, []).append(record)
+            by_kana.setdefault(kana, []).append(entry["id"])
             for kanji in kanjis:
-                by_pair.setdefault((kanji, kana), []).append(record)
-    return by_pair, by_kana
+                by_pair.setdefault((kanji, kana), []).append(entry["id"])
+    return entries, by_pair, by_kana
 
 
-def pick_glosses(index, word, kana, limit=3):
-    by_pair, by_kana = index
-    candidates = by_pair.get((word, kana)) or by_kana.get(kana)
-    if not candidates and kana.endswith("する"):
+def pick_entry(index, word, kana, preferred=None):
+    """Identifiant JMdict du mot, et vrai si on est passé par le radical する.
+
+    Le choix se fait sur l'index anglais, le seul complet : le français n'a
+    qu'une entrée sur quatorze et ne peut pas trancher. Mais une entrée que le
+    français connaît passe devant, sinon いくら part sur イクラ, absent du
+    français, et le mot est perdu faute de traduction.
+    """
+    entries, by_pair, by_kana = index
+    ids = by_pair.get((word, kana)) or by_kana.get(kana)
+    suru = False
+    if not ids and kana.endswith("する"):
         stem = kana[:-2]
-        candidates = by_pair.get((word, stem)) or by_kana.get(stem)
-    if not candidates:
-        return None
-    candidates = sorted(candidates, key=lambda c: not c[0])
-    out = []
-    for senses in candidates[0][1][:2]:
-        for gloss in senses:
+        ids = by_pair.get((word, stem)) or by_kana.get(stem)
+        suru = bool(ids)
+    if not ids:
+        return None, False
+    known = preferred or {}
+    return sorted(ids, key=lambda i: (i not in known, not entries[i][0]))[0], suru
+
+
+
+def glosses_for(index, entry_id, position=None, limit=3):
+    """Gloses d'une entrée, et la position du sens retenu.
+
+    `position` demande un sens précis, celui déjà retenu dans l'autre langue.
+    Un sens non traduit fait retomber sur le premier sens disponible : mieux
+    vaut un décalage de sens qu'un mot sans traduction.
+    """
+    entries = index[0]
+    record = entries.get(entry_id)
+    if not record:
+        return None, None
+    senses = record[1]
+    order = [] if position is None else [position]
+    order += [i for i in range(len(senses)) if i != position]
+    for i in order:
+        if not 0 <= i < len(senses):
+            continue
+        out = []
+        for gloss in senses[i]:
             gloss = gloss.strip()
             if gloss and gloss not in out:
                 out.append(gloss)
-        if len(out) >= limit:
-            break
-    return ", ".join(out[:limit]) or None
+        if out:
+            return ", ".join(out[:limit]), i
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -365,17 +400,35 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
                     fallback.append(m)
         word = forms[0] if forms else kana
 
-        fr = override.get("fr") or pick_glosses(french, word, kana)
-        en = override.get("en") or pick_glosses(english, word, kana)
+        entry_id, suru = pick_entry(english, word, kana, french[0])
+        en_auto, position = (None, None)
+        if entry_id is not None:
+            en_auto, position = glosses_for(english, entry_id)
+        en = override.get("en") or en_auto
+        fr = override.get("fr")
+        if not fr and entry_id is not None:
+            # Même entrée, et si possible même sens : sans ça les deux lignes
+            # décrivent parfois deux mots différents. Le français reste plus
+            # large quand il aplatit tous les sens en un seul, mais il porte
+            # alors sur la bonne entrée, ce qui suffit.
+            fr = glosses_for(french, entry_id, position)[0]
         if not en:
             en = ", ".join(fallback[:3])
         if not fr:
             missing_fr.append((kana, word, en))
             continue
 
+        # 出発する n'a pas d'entrée propre, ses sens viennent du nom 出発 :
+        # l'écriture affichée doit garder le する pour coller à la lecture.
+        display = word
+        if suru and not word.endswith("する"):
+            display = word + "する"
+            if forms:
+                forms[0] = display
+
         entry = {
             "kana": kana,
-            "word": word,
+            "word": display,
             "forms": forms,
             "level": level,
             "fr": fr,
