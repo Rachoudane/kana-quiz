@@ -32,6 +32,10 @@ jobs:
       # au lieu de servir l'ancienne version depuis son propre cache.
       - run: flutter build web --release --base-href /kana-quiz/ --pwa-strategy=none
 
+      # Les navigateurs qui ont vu le site avant gardent son service worker :
+      # celui-ci prend sa place et le désinstalle.
+      - run: cp tool/sw_unregister.js build/web/flutter_service_worker.js
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
