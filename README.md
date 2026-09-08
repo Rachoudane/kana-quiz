@@ -20,6 +20,10 @@ embarquées, la progression reste dans le navigateur.
 - **Chrono réglable** : 1, 3, 5, 10 ou 15 minutes. Le classement sépare les
   durées et les réglages, deux parties ne se comparent que si elles sont
   comparables.
+- **Aucun retour pendant la frappe** : rien ne bouge tant que la lecture n'est
+  pas complète et juste. Signaler l'erreur à la première lettre fautive
+  permettrait de retrouver la réponse à tâtons, et le score ne voudrait plus
+  rien dire. Un réglage permet de le réactiver.
 - **Correction bloquante** : sur une faute, la bonne lecture s'affiche et il
   faut la recopier pour repartir.
 - **Fiche après chaque mot** : kana, kanji, lecture de référence, sens,

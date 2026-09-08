@@ -100,6 +100,40 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('rien ne signale la direction pendant la frappe',
+      (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    Color border() {
+      final field = tester.widget<TextField>(find.byType(TextField));
+      final decoration = field.decoration!.enabledBorder as OutlineInputBorder;
+      return decoration.borderSide.color;
+    }
+
+    final neutral = border();
+    final prompt = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+
+    // Un début juste ne doit pas encourager…
+    await tester.enterText(
+      find.byType(TextField),
+      RomajiReading(prompt).reference.substring(0, 1),
+    );
+    await tester.pump();
+    expect(border(), neutral);
+
+    // …et une lettre impossible ne doit pas prévenir.
+    await tester.enterText(find.byType(TextField), 'qqq');
+    await tester.pump();
+    expect(border(), neutral);
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('les réglages expliquent les graphies acceptées',
       (tester) async {
     await pumpApp(tester);

@@ -33,6 +33,7 @@ class KanaQuizApp extends StatelessWidget {
 
   static const themeSetting = 'theme';
   static const romajiSetting = 'romaji';
+  static const typingSetting = 'typing_feedback';
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app.dart';
 import '../../app/theme.dart';
 import '../../core/data/dataset.dart';
 import '../../core/models/models.dart';
@@ -201,11 +202,14 @@ class _QuizPageState extends State<QuizPage> {
     final item = _quiz.current;
     final correcting = _quiz.correcting;
 
-    final borderColor = switch (_quiz.state) {
-      AnswerState.invalid => failure,
-      AnswerState.partial => theme.colorScheme.primary,
-      _ => theme.colorScheme.outlineVariant,
-    };
+    // Par défaut la bordure ne dit rien pendant la frappe : signaler une
+    // erreur, ou confirmer qu'on est sur la bonne voie, revient à souffler la
+    // réponse lettre par lettre. Seule une lecture complète et juste réagit.
+    final signalErrors =
+        widget.store.setting(KanaQuizApp.typingSetting) == 'errors';
+    final borderColor = signalErrors && _quiz.state == AnswerState.invalid
+        ? failure
+        : theme.colorScheme.outlineVariant;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 24),

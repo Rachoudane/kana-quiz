@@ -56,6 +56,28 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _help(context),
                   const SizedBox(height: 32),
+                  const SectionTitle('Pendant la frappe'),
+                  ChoiceRow<String>(
+                    values: const ['none', 'errors'],
+                    selected:
+                        store.setting(KanaQuizApp.typingSetting) ?? 'none',
+                    labelOf: (v) =>
+                        v == 'none' ? 'Aucun retour' : 'Signaler les erreurs',
+                    onSelected: (v) =>
+                        store.setSetting(KanaQuizApp.typingSetting, v),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Sans retour, rien ne bouge tant que la lecture n'est pas "
+                    "complète et juste : c'est le seul moyen de savoir si tu "
+                    'connaissais vraiment le mot. Signaler les erreurs colore '
+                    'le champ en rouge dès la première lettre fautive, ce qui '
+                    'permet de retrouver la réponse à tâtons.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                   const SectionTitle('Progression'),
                   Text(
                     'Tout est stocké dans ce navigateur. L\'export permet de '
