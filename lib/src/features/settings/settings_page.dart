@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../app/app.dart';
 import '../../app/theme.dart';
+import '../../core/audio/speech.dart';
 import '../../core/romaji/romaji_reading.dart';
 import '../common/widgets.dart';
 
@@ -73,6 +74,29 @@ class SettingsPage extends StatelessWidget {
                     'connaissais vraiment le mot. Signaler les erreurs colore '
                     'le champ en rouge dès la première lettre fautive, ce qui '
                     'permet de retrouver la réponse à tâtons.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const SectionTitle('Prononciation'),
+                  ChoiceRow<String>(
+                    values: const ['off', 'on'],
+                    selected: store.setting(KanaQuizApp.audioSetting) ?? 'off',
+                    labelOf: (v) => v == 'off' ? 'Silence' : 'Dire le mot',
+                    onSelected: (v) =>
+                        store.setSetting(KanaQuizApp.audioSetting, v),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    Speech.available
+                        ? 'Le mot est prononcé quand sa lecture apparaît : '
+                            'réponse validée, correction affichée, mot '
+                            'présenté. Jamais pendant que tu cherches, ce '
+                            'serait donner la réponse. La voix est celle du '
+                            'navigateur : sa qualité dépend de la machine, et '
+                            "certaines n'ont aucune voix japonaise."
+                        : 'Ce navigateur ne propose pas de synthèse vocale.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

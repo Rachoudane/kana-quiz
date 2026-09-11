@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../../app/app.dart';
+import '../../core/audio/speech.dart';
 import '../../core/models/models.dart';
 import '../../core/romaji/romaji_reading.dart';
 import '../../core/storage/progress_store.dart';
@@ -35,6 +37,7 @@ class QuizController extends ChangeNotifier {
         remainingSeconds = durationSeconds {
     _current = _nextItem();
     teaching = _teaches(_current);
+    if (teaching) _say(_current);
     _ticker = Timer.periodic(const Duration(seconds: 1), _tick);
   }
 
@@ -109,6 +112,17 @@ class QuizController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Prononce la lecture, si l'audio est activé dans les réglages.
+  ///
+  /// On parle quand la lecture devient visible : réponse validée, correction
+  /// affichée, mot présenté. Entendre le mot pendant qu'on le cherche
+  /// donnerait la réponse.
+  void _say(QuizItem item) {
+    if (store.setting(KanaQuizApp.audioSetting) == 'on') {
+      Speech.say(item.spoken);
+    }
+  }
+
   /// Vrai si la question doit d'abord être montrée.
   bool _teaches(QuizItem item) =>
       mode.teachesFirst && !_steps.containsKey(item.id);
@@ -160,6 +174,7 @@ class QuizController extends ChangeNotifier {
     correcting = true;
     input = '';
     state = AnswerState.empty;
+    _say(_current);
     notifyListeners();
   }
 
@@ -181,6 +196,7 @@ class QuizController extends ChangeNotifier {
     state = AnswerState.empty;
     _current = _nextItem();
     teaching = _teaches(_current);
+    _say(teaching ? _current : answered);
     notifyListeners();
   }
 
@@ -229,6 +245,7 @@ class QuizController extends ChangeNotifier {
 
   @override
   void dispose() {
+    Speech.stop();
     _ticker.cancel();
     super.dispose();
   }

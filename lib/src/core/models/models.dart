@@ -153,6 +153,9 @@ class QuizItem {
 
   String get reference => readings.first.reference;
 
+  /// Ce qu'il faut prononcer : la lecture attendue, en kana.
+  String get spoken => readings.isEmpty ? '' : readings.first.kana;
+
   List<String> get alternates => readings.first.alternates;
 
   /// Toutes les lectures de référence, pour les kanji à plusieurs lectures.
