@@ -27,25 +27,25 @@ class KanjiReadingMode extends QuizMode {
 
   @override
   List<ModeOption> get options => const [
-    ModeOption(
-      id: 'level',
-      label: 'Niveau',
-      choices: [
-        ModeChoice('5', 'N5', hint: 'Les 79 kanji du programme N5'),
-        ModeChoice('4', 'N5 + N4'),
-        ModeChoice('3', 'N5 + N4 + N3'),
-      ],
-    ),
-    ModeOption(
-      id: 'readings',
-      label: 'Lectures',
-      choices: [
-        ModeChoice('any', 'On ou kun'),
-        ModeChoice('on', 'Lecture on seule'),
-        ModeChoice('kun', 'Lecture kun seule'),
-      ],
-    ),
-  ];
+        ModeOption(
+          id: 'level',
+          label: 'Niveau',
+          choices: [
+            ModeChoice('5', 'N5', hint: 'Les 79 kanji du programme N5'),
+            ModeChoice('4', 'N5 + N4'),
+            ModeChoice('3', 'N5 + N4 + N3'),
+          ],
+        ),
+        ModeOption(
+          id: 'readings',
+          label: 'Lectures',
+          choices: [
+            ModeChoice('any', 'On ou kun'),
+            ModeChoice('on', 'Lecture on seule'),
+            ModeChoice('kun', 'Lecture kun seule'),
+          ],
+        ),
+      ];
 
   @override
   List<QuizItem> buildItems(ModeContext context) {
@@ -73,10 +73,8 @@ class KanjiReadingMode extends QuizMode {
     };
     if (readings.isEmpty) return null;
 
-    final related = entry.wordIds
-        .map(data.wordById)
-        .whereType<VocabWord>()
-        .toList();
+    final related =
+        entry.wordIds.map(data.wordById).whereType<VocabWord>().toList();
 
     return QuizItem(
       id: 'k_${entry.kanji}_$readingType',

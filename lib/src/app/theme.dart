@@ -66,12 +66,12 @@ ThemeData buildTheme(Brightness brightness) {
 
 /// Style des kana et kanji affichés en grand.
 TextStyle promptStyle(BuildContext context, double size) => TextStyle(
-  fontFamily: 'NotoSansJP',
-  fontSize: size,
-  height: 1.1,
-  letterSpacing: 2,
-  color: Theme.of(context).colorScheme.onSurface,
-);
+      fontFamily: 'NotoSansJP',
+      fontSize: size,
+      height: 1.1,
+      letterSpacing: 2,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
 
 /// Style des textes japonais courants (phrases d'exemple, lectures).
 TextStyle japaneseStyle(TextStyle? base) =>

@@ -10,8 +10,7 @@ void main() {
       expect(
         reading.evaluate(input),
         AnswerState.complete,
-        reason:
-            '$kana devrait accepter « $input » '
+        reason: '$kana devrait accepter « $input » '
             '(référence ${reading.reference})',
       );
     }
@@ -143,38 +142,16 @@ void main() {
   group('robustesse', () {
     test('la référence de chaque lecture est acceptée par elle-même', () {
       const samples = [
-        'あたらしい',
-        'いっしょ',
-        'おちゃ',
-        'かいしゃ',
-        'きって',
-        'ぎゅうにゅう',
-        'けっこん',
-        'こんばん',
-        'しゅくだい',
-        'じてんしゃ',
-        'せんげつ',
-        'たいへん',
-        'ちょうど',
-        'でんわ',
-        'にちようび',
-        'ひゃく',
-        'べんきょう',
-        'まいにち',
-        'りょこう',
-        'エレベーター',
-        'カレンダー',
-        'ワイシャツ',
-        'ニュース',
+        'あたらしい', 'いっしょ', 'おちゃ', 'かいしゃ', 'きって', 'ぎゅうにゅう',
+        'けっこん', 'こんばん', 'しゅくだい', 'じてんしゃ', 'せんげつ', 'たいへん',
+        'ちょうど', 'でんわ', 'にちようび', 'ひゃく', 'べんきょう', 'まいにち',
+        'りょこう', 'エレベーター', 'カレンダー', 'ワイシャツ', 'ニュース',
       ];
       for (final kana in samples) {
         final reading = RomajiReading(kana);
         expect(reading.reference, isNotEmpty, reason: kana);
-        expect(
-          reading.accepts(reading.reference),
-          isTrue,
-          reason: '$kana -> ${reading.reference}',
-        );
+        expect(reading.accepts(reading.reference), isTrue,
+            reason: '$kana -> ${reading.reference}');
         for (final alt in reading.alternates) {
           expect(reading.accepts(alt), isTrue, reason: '$kana -> $alt');
         }

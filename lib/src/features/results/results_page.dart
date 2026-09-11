@@ -11,12 +11,12 @@ import '../scoreboard/scoreboard_page.dart';
 
 class ResultsPage extends StatelessWidget {
   ResultsPage({super.key, required QuizController quiz})
-    : mode = quiz.mode,
-      config = quiz.config,
-      durationSeconds = quiz.durationSeconds,
-      result = quiz.result!,
-      isRecord = quiz.isRecord,
-      entries = List.unmodifiable(quiz.history);
+      : mode = quiz.mode,
+        config = quiz.config,
+        durationSeconds = quiz.durationSeconds,
+        result = quiz.result!,
+        isRecord = quiz.isRecord,
+        entries = List.unmodifiable(quiz.history);
 
   final QuizMode mode;
   final Map<String, String> config;
@@ -39,9 +39,9 @@ class ResultsPage extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Scores',
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ScoreboardPage())),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ScoreboardPage()),
+            ),
             icon: const Icon(Icons.leaderboard_outlined),
           ),
         ],
@@ -55,10 +55,8 @@ class ResultsPage extends StatelessWidget {
               if (isRecord)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: highlight.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -66,18 +64,14 @@ class ResultsPage extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.emoji_events_outlined,
-                        color: highlight,
-                        size: 20,
-                      ),
+                      const Icon(Icons.emoji_events_outlined,
+                          color: highlight, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Nouveau record dans cette configuration.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -127,10 +121,7 @@ class ResultsPage extends StatelessWidget {
                             color: result.mistakes > 0 ? failure : null,
                           ),
                           if (rank > 0)
-                            StatTile(
-                              value: '#$rank',
-                              label: 'classement perso',
-                            ),
+                            StatTile(value: '#$rank', label: 'classement perso'),
                         ],
                       ),
                     ],

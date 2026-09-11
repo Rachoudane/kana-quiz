@@ -83,8 +83,8 @@ abstract class QuizMode {
       '${buildItems(context).length} questions dans cette sélection.';
 
   Map<String, String> get defaultConfig => {
-    for (final option in options) option.id: option.defaultChoice,
-  };
+        for (final option in options) option.id: option.defaultChoice,
+      };
 
   /// Réglages résumés en une ligne, pour les écrans de score.
   String describe(Map<String, String> config) => options

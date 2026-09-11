@@ -235,7 +235,12 @@ List<RomajiUnit> _segment(String rawKana) {
           _geminate(variant),
       ];
       units.add(
-        RomajiUnit(ch + key, [_geminate(base)], extra: extra, ambiguous: true),
+        RomajiUnit(
+          ch + key,
+          [_geminate(base)],
+          extra: extra,
+          ambiguous: true,
+        ),
       );
       i += 1 + len;
       continue;
@@ -263,7 +268,10 @@ List<RomajiUnit> _segment(String rawKana) {
           ch,
           // L'apostrophe reste facultative : « sanin » comme « san'in ».
           needsApostrophe ? ['n', "n'"] : ['n'],
-          extra: ['nn', if (next.isNotEmpty && _labialKana.contains(next)) 'm'],
+          extra: [
+            'nn',
+            if (next.isNotEmpty && _labialKana.contains(next)) 'm',
+          ],
           ambiguous: needsApostrophe,
         ),
       );

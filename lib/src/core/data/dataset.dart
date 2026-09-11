@@ -9,7 +9,7 @@ import '../models/models.dart';
 /// Un seul chargement par session ; les modes piochent ensuite dedans.
 class Dataset {
   Dataset._(this.words, this.kanji, this.attributions)
-    : _wordsById = {for (final w in words) w.id: w};
+      : _wordsById = {for (final w in words) w.id: w};
 
   final List<VocabWord> words;
   final List<KanjiEntry> kanji;
@@ -39,7 +39,10 @@ class Dataset {
       (kanjiJson['kanji'] as List)
           .map((e) => KanjiEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      [vocabJson['attribution'] as String, kanjiJson['attribution'] as String],
+      [
+        vocabJson['attribution'] as String,
+        kanjiJson['attribution'] as String,
+      ],
     );
     _instance = dataset;
     return dataset;
