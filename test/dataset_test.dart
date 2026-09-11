@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
+import 'package:kana_quiz/src/core/models/models.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
 import 'package:kana_quiz/src/modes/modes.dart';
 
@@ -60,6 +61,27 @@ void main() {
         isTrue,
         reason: '${word.kana} écrit « ${word.word} »',
       );
+    }
+  });
+
+  test('une lecture ne prend pas le sens de son homonyme', () {
+    // Les listes source rangent 刷る, 為る et 擦る sous la lecture する : c'est
+    // la ligne du niveau le plus accessible qui donne le mot, et l'entrée
+    // choisie fixe l'écriture affichée comme les exemples.
+    VocabWord word(String kana) =>
+        data.words.firstWhere((w) => w.kana == kana);
+
+    expect(word('する').word, 'する');
+    expect(word('する').en, contains('to do'));
+    expect(word('なる').en, contains('to become'));
+    expect(word('はい').en, contains('yes'));
+
+    // Une phrase d'exemple parle du mot, pas de son homophone.
+    for (final example in word('する').examples) {
+      expect(example.jp, contains('する'));
+    }
+    for (final example in word('かみ').examples) {
+      expect(example.jp, contains('紙'));
     }
   });
 

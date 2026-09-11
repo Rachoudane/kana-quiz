@@ -137,6 +137,10 @@ def load_api():
 
 SKIP_MISC = {"arch", "obs", "obsc", "rare", "vulg", "derog", "sl"}
 
+# Graphies que JMdict signale comme sorties de l'usage : rare, recherchée,
+# ancienne, irrégulière.
+RARE_KANJI = {"rK", "sK", "oK", "iK"}
+
 
 def jmdict_url(lang):
     meta = json.loads(fetch(JMDICT_RELEASE, "jmdict_release.json"))
@@ -179,7 +183,17 @@ def load_jmdict(lang):
         )
         kanas = [k["text"] for k in entry["kana"]]
         kanjis = [k["text"] for k in entry["kanji"]]
-        entries[entry["id"]] = (common, senses)
+        # Les graphies de l'entrée servent à écarter, plus bas, les écritures
+        # d'un autre mot que les listes source ont rangées sous la même
+        # lecture : 刷る n'est pas une autre façon d'écrire する. Le drapeau
+        # dit si la graphie s'écrit encore : 為る est une graphie de する comme
+        # de なる, mais plus personne ne l'écrit, et chercher des exemples
+        # dessus mélangeait les deux verbes.
+        writings = [
+            (k["text"], not (set(k.get("tags") or []) & RARE_KANJI))
+            for k in entry["kanji"]
+        ]
+        entries[entry["id"]] = (common, senses, writings)
         for kana in kanas:
             by_kana.setdefault(kana, []).append(entry["id"])
             for kanji in kanjis:
@@ -187,13 +201,54 @@ def load_jmdict(lang):
     return entries, by_pair, by_kana
 
 
-def pick_entry(index, word, kana, preferred=None):
+def writings_of(index, entry_id):
+    """Graphies de l'entrée : (texte, encore en usage). Vide si introuvable."""
+    record = index[0].get(entry_id)
+    return record[2] if record else []
+
+
+STOP_WORDS = {
+    "a", "an", "the", "to", "of", "in", "on", "for", "with", "and", "or", "be",
+    "is", "as", "at", "by", "from", "one", "s", "e", "g", "etc", "esp", "used",
+    "something", "someone", "oneself", "that", "this", "it", "its", "not",
+}
+
+
+def words_in(text):
+    """Mots significatifs d'une glose, pour comparer deux définitions."""
+    return {
+        w for w in re.split(r"[^a-z]+", (text or "").lower())
+        if w and w not in STOP_WORDS
+    }
+
+
+def sense_overlap(record, meaning):
+    """Nombre de mots communs entre le sens de la liste source et l'entrée.
+
+    Une lecture écrite en kana n'a pas d'écriture pour désigner son entrée :
+    はし ou よい renvoient une demi-douzaine d'homonymes et c'est le sens de la
+    liste qui tranche, sinon よい part sur 宵, « le soir ».
+    """
+    if not meaning:
+        return 0
+    wanted = words_in(meaning)
+    if not wanted:
+        return 0
+    best = 0
+    for sense in record[1]:
+        for gloss in sense:
+            best = max(best, len(wanted & words_in(gloss)))
+    return best
+
+
+def pick_entry(index, word, kana, preferred=None, meaning=None):
     """Identifiant JMdict du mot, et vrai si on est passé par le radical する.
 
     Le choix se fait sur l'index anglais, le seul complet : le français n'a
     qu'une entrée sur quatorze et ne peut pas trancher. Mais une entrée que le
     français connaît passe devant, sinon いくら part sur イクラ, absent du
-    français, et le mot est perdu faute de traduction.
+    français, et le mot est perdu faute de traduction. À égalité, c'est
+    l'entrée qui dit la même chose que la liste source qui l'emporte.
     """
     entries, by_pair, by_kana = index
     ids = by_pair.get((word, kana)) or by_kana.get(kana)
@@ -205,8 +260,15 @@ def pick_entry(index, word, kana, preferred=None):
     if not ids:
         return None, False
     known = preferred or {}
-    return sorted(ids, key=lambda i: (i not in known, not entries[i][0]))[0], suru
-
+    ranked = sorted(
+        ids,
+        key=lambda i: (
+            i not in known,
+            -sense_overlap(entries[i], meaning),
+            not entries[i][0],
+        ),
+    )
+    return ranked[0], suru
 
 
 def glosses_for(index, entry_id, position=None, limit=3):
@@ -262,7 +324,11 @@ def surface_reading(head, reading, surface):
 
 
 def load_examples():
-    """Phrases (japonais, anglais) + index lemme -> phrases + lectures annotées."""
+    """Phrases (japonais, anglais) + index lemme -> phrases + lectures annotées.
+
+    Chaque entrée de l'index retient le numéro de sens annoté par le corpus,
+    `する[1]` contre `する[2]` : sans lui, une phrase illustre un homonyme.
+    """
     raw = gzip.decompress(fetch(TANAKA, "examples.utf.gz", binary=True))
     text = raw.decode("utf-8", "replace")
     sentences = []   # (japonais, anglais, {surface: lecture})
@@ -284,18 +350,19 @@ def load_examples():
                 m = TOKEN_RE.match(token)
                 if not m:
                     continue
-                head, reading, _sense, surface = m.groups()
-                lemmas.append(head)
+                head, reading, sense, surface = m.groups()
+                sense = int(sense) if sense else None
+                lemmas.append((head, sense, head))
                 if reading and not reading.startswith("#"):
-                    lemmas.append(reading)
+                    lemmas.append((reading, sense, head))
                     if HAS_KANJI.search(head):
                         kana = surface_reading(head, reading, surface or head)
                         if kana and not HAS_KANJI.search(kana):
                             readings[surface or head] = kana
             idx = len(sentences)
             sentences.append((jp, en, readings))
-            for lemma in set(lemmas):
-                index.setdefault(lemma, []).append(idx)
+            for lemma, sense, head in set(lemmas):
+                index.setdefault(lemma, []).append((idx, sense, head))
     return sentences, index
 
 
@@ -334,19 +401,50 @@ class KanaLine:
         return result
 
 
-def pick_examples(word, kana, sentences, index, kana_line, limit=2):
+def pick_examples(keys, kana, own, sense, sentences, index, kana_line, limit=2):
+    """Phrases où le mot est employé, et au sens affiché.
+
+    Le corpus Tanaka numérote le sens de chaque mot annoté, et ce numéro suit
+    l'ordre des sens de JMdict : une phrase annotée sur un autre sens parle
+    d'un autre mot et ne sert pas d'exemple.
+
+    La recherche part des écritures du mot. Chercher aussi sur la lecture
+    ramenait n'importe quel homophone — une phrase sur 他 illustrait 田 — mais
+    l'écarter faisait perdre les phrases où le mot s'écrit autrement. La
+    lecture reste donc interrogée en dernier, et seulement pour les phrases
+    dont le sens annoté est celui qu'on affiche.
+
+    Dernier garde-fou, le lemme annoté doit être une graphie du mot : はし
+    ramenait les phrases de 橋 par sa lecture, et leur numéro de sens tombait
+    juste par hasard, deux entrées différentes numérotant chacune à partir
+    de 1.
+    """
+    wanted = None if sense is None else sense + 1
+    allowed = set(keys) | set(own) | {kana}
+    lookups = [(key, False) for key in keys]
+    if kana not in keys:
+        lookups.append((kana, True))
+
     seen = set()
     candidates = []
-    for key in (word, kana):
-        for idx in index.get(key, []):
-            if idx in seen:
+    for key, by_reading in lookups:
+        for idx, tagged, head in index.get(key, []):
+            if idx in seen or head not in allowed:
+                continue
+            exact = wanted is not None and tagged == wanted
+            if not exact and tagged is not None and wanted is not None:
+                continue
+            if by_reading and not exact:
                 continue
             seen.add(idx)
-            candidates.append((len(sentences[idx][0]), idx))
+            candidates.append((0 if exact else 1, len(sentences[idx][0]), idx))
     candidates.sort()
 
+    # Une phrase dont on ne sait pas reconstruire la ligne en kana est
+    # écartée plus bas : il faut en garder assez sous la main pour ne pas
+    # laisser un mot sans exemple à cause des premières.
     out = []
-    for _length, idx in candidates[:12]:
+    for _exact, _length, idx in candidates[:40]:
         jp, en, annotated = sentences[idx]
         line = kana_line.build(jp, annotated)
         if not line:
@@ -392,15 +490,21 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
         forms = []
         fallback = []
         for e in group:
-            if e["word"] != kana and e["word"] not in forms:
+            if e["word"] not in forms:
                 forms.append(e["word"])
             for m in e["meaning"].split(","):
                 m = m.strip()
                 if m and m not in fallback:
                     fallback.append(m)
-        word = forms[0] if forms else kana
 
-        entry_id, suru = pick_entry(english, word, kana, french[0])
+        # L'écriture est celle de la liste source, au niveau le plus
+        # accessible. Une ligne qui s'écrit déjà en kana comptait pour rien :
+        # la ligne N5 する était ignorée et c'est le 刷る du N3, « imprimer »,
+        # qui donnait le sens et les exemples de する.
+        word = forms[0]
+        entry_id, suru = pick_entry(
+            english, word, kana, french[0], meaning=group[0]["meaning"]
+        )
         en_auto, position = (None, None)
         if entry_id is not None:
             en_auto, position = glosses_for(english, entry_id)
@@ -423,8 +527,15 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
         display = word
         if suru and not word.endswith("する"):
             display = word + "する"
-            if forms:
-                forms[0] = display
+
+        # Les autres graphies listées sont celles de l'entrée retenue, et
+        # elles seules : les listes source regroupent par lecture, si bien que
+        # する traînait 刷る et 擦る, qui sont deux autres mots.
+        written = writings_of(english, entry_id)
+        own = {text for text, _usual in written}
+        forms = [display] + [
+            f for f in forms if f in own and f != display and f != word
+        ]
 
         entry = {
             "kana": kana,
@@ -435,7 +546,17 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
             "en": en,
             "script": "katakana" if HAS_KATAKANA.search(kana) else "hiragana",
         }
-        examples = pick_examples(word, kana, sentences, index, kana_line)
+        # Les graphies rares ne servent pas à chercher des exemples : 為る
+        # est une écriture de する comme de なる, et les phrases de l'un
+        # illustraient l'autre.
+        keys = [display] if display == word else [display, word]
+        keys += [
+            text for text, usual in written
+            if usual and text not in keys and text != kana
+        ]
+        examples = pick_examples(
+            keys, kana, own, position, sentences, index, kana_line
+        )
         if examples:
             entry["examples"] = examples
         words.append(entry)
