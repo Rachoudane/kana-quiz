@@ -28,13 +28,14 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      # Sans service worker : le site se met à jour au premier rechargement,
-      # au lieu de servir l'ancienne version depuis son propre cache.
+      - run: node tool/sw_test.js
+      # Le service worker de Flutter reste désactivé : il servait sa propre
+      # copie du site sans jamais l'invalider. web/sw.js le remplace.
       - run: flutter build web --release --base-href /kana-quiz/ --pwa-strategy=none
 
-      # Les navigateurs qui ont vu le site avant gardent son service worker :
-      # celui-ci prend sa place et le désinstalle.
-      - run: cp tool/sw_unregister.js build/web/flutter_service_worker.js
+      # Le cache du service worker porte le numéro du commit : un déploiement
+      # ouvre un cache neuf et supprime les précédents.
+      - run: sed -i "s/__BUILD_ID__/${GITHUB_SHA}/" build/web/sw.js
 
       - uses: actions/upload-pages-artifact@v3
         with:

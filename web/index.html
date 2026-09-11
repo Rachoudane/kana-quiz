@@ -42,5 +42,19 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <!--
+    Service worker maison : celui de Flutter est désactivé au build
+    (--pwa-strategy=none) parce qu'il servait indéfiniment sa propre copie du
+    site. Celui-ci ouvre un cache neuf à chaque déploiement et va toujours
+    chercher la page sur le réseau. Voir web/sw.js.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
 </body>
 </html>
