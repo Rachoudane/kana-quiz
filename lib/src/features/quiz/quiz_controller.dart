@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -21,7 +22,8 @@ class AnsweredEntry {
 ///
 /// Règle de saisie : la réponse est validée dès qu'elle est complète, sans
 /// appuyer sur Entrée. Entrée sert à déclarer forfait sur le mot en cours ;
-/// il faut alors recopier la bonne lecture pour repartir.
+/// il faut alors recopier la bonne lecture pour repartir. Échap passe le mot
+/// sans le compter.
 class QuizController extends ChangeNotifier {
   QuizController({
     required this.mode,
@@ -102,6 +104,29 @@ class QuizController extends ChangeNotifier {
       return;
     }
     notifyListeners();
+  }
+
+  /// Nombre de questions avant qu'un mot passé ne revienne.
+  static const int _requeueGap = 12;
+
+  /// Échap : passe le mot en cours sans le compter.
+  ///
+  /// Ni juste ni faux : le mot retourne dans le tirage et revient plus loin
+  /// dans la partie. Une faute déjà comptée sur ce mot le reste, passer ne
+  /// l'efface pas, ça évite d'échapper à la correction sans conséquence.
+  void skip() {
+    if (phase == QuizPhase.finished) return;
+    _requeue(_current);
+    correcting = false;
+    input = '';
+    state = AnswerState.empty;
+    _current = _nextItem();
+    notifyListeners();
+  }
+
+  void _requeue(QuizItem item) {
+    final at = min(_items.length, _cursor + _requeueGap);
+    _items = [..._items]..insert(at, item);
   }
 
   /// Entrée : déclare forfait sur le mot en cours et affiche la correction.

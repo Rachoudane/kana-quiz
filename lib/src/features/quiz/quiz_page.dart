@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/app.dart';
 import '../../app/theme.dart';
@@ -86,61 +87,76 @@ class _QuizPageState extends State<QuizPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // Un clic n'importe où rend la main au champ : sinon les frappes
-        // partent dans le vide pendant que le chrono continue.
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: _focus.requestFocus,
-          child: ListenableBuilder(
-          listenable: _quiz,
-          builder: (context, _) {
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 900;
-                final board = _board(context);
-                final history = _history(context);
-                return Column(
-                  children: [
-                    _topBar(context),
-                    Expanded(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: wide ? 1080 : 640,
-                          ),
-                          child: wide
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(flex: 5, child: board),
-                                    const SizedBox(width: 24),
-                                    Expanded(
-                                      flex: 4,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(top: 24),
-                                        child: history,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : ListView(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                                  children: [
-                                    board,
-                                    const SizedBox(height: 24),
-                                    history,
-                                  ],
+        // Échap passe le mot. Le raccourci est posé au-dessus du champ : le
+        // champ ignore Échap, et on ne quitte donc pas la saisie pour passer.
+        child: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): _quiz.skip,
+          },
+          child:
+              // Un clic n'importe où rend la main au champ : sinon les frappes
+              // partent dans le vide pendant que le chrono continue.
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _focus.requestFocus,
+                child: ListenableBuilder(
+                  listenable: _quiz,
+                  builder: (context, _) {
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final wide = constraints.maxWidth >= 900;
+                        final board = _board(context);
+                        final history = _history(context);
+                        return Column(
+                          children: [
+                            _topBar(context),
+                            Expanded(
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: wide ? 1080 : 640,
+                                  ),
+                                  child: wide
+                                      ? Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(flex: 5, child: board),
+                                            const SizedBox(width: 24),
+                                            Expanded(
+                                              flex: 4,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 24,
+                                                ),
+                                                child: history,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : ListView(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            20,
+                                            0,
+                                            20,
+                                            24,
+                                          ),
+                                          children: [
+                                            board,
+                                            const SizedBox(height: 24),
+                                            history,
+                                          ],
+                                        ),
                                 ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-                },
-              );
-            },
-          ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
         ),
       ),
     );
@@ -294,7 +310,8 @@ class _QuizPageState extends State<QuizPage> {
     final theme = Theme.of(context);
     return Center(
       child: Text(
-        'Entrée : afficher la réponse (compté comme une faute).',
+        'Entrée : afficher la réponse (compté comme une faute).\n'
+        'Échap : passer le mot, il revient plus loin.',
         textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),

@@ -30,6 +30,35 @@ void main() {
         store: store,
       );
 
+  test('Échap passe le mot sans le compter, et il revient', () {
+    final quiz = build();
+    final passe = quiz.current.id;
+    quiz.skip();
+
+    expect(quiz.correct, 0);
+    expect(quiz.mistakes, 0);
+    expect(quiz.history, isEmpty, reason: "un mot passé n'est pas une réponse");
+    expect(quiz.current.id, isNot(passe));
+
+    final vus = <String>[];
+    for (var i = 0; i < 20; i++) {
+      vus.add(quiz.current.id);
+      quiz.onInputChanged(quiz.current.reference);
+    }
+    expect(vus, contains(passe), reason: 'le mot passé revient dans la partie');
+    quiz.dispose();
+  });
+
+  test("passer après une faute ne l'efface pas", () {
+    final quiz = build();
+    quiz.giveUp();
+    expect(quiz.mistakes, 1);
+    quiz.skip();
+    expect(quiz.mistakes, 1);
+    expect(quiz.correcting, isFalse);
+    quiz.dispose();
+  });
+
   test('une réponse complète valide sans appuyer sur Entrée', () {
     final quiz = build();
     final expected = quiz.current.reference;

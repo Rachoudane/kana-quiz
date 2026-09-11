@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/app/app.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
@@ -71,6 +72,30 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kana Quiz'), findsOneWidget);
+  });
+
+  testWidgets('Échap passe le mot sans quitter la saisie', (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    final avant = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await advance(tester);
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('prompt'))).data,
+      isNot(avant),
+    );
+    // Ni juste ni faux, et le champ garde le curseur.
+    expect(find.textContaining('recopie la lecture'), findsNothing);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode?.hasFocus, isTrue);
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('une bonne réponse affiche la fiche du mot', (tester) async {
