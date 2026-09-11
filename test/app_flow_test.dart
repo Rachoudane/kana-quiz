@@ -64,7 +64,7 @@ void main() {
     // Entrée : la correction s'affiche et il faut la recopier.
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await advance(tester);
-    expect(find.text('recopie la lecture'), findsOneWidget);
+    expect(find.text('recopie la réponse'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close).first);
     await advance(tester);
@@ -88,7 +88,7 @@ void main() {
       isNot(avant),
     );
     // Ni juste ni faux, et le champ garde le curseur.
-    expect(find.textContaining('recopie la lecture'), findsNothing);
+    expect(find.textContaining('recopie la réponse'), findsNothing);
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.focusNode?.hasFocus, isTrue);
 

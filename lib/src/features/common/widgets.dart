@@ -148,12 +148,18 @@ class ItemRevealCard extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
                         child: Text(
-                          item.allReferences.take(3).join(' / '),
-                          style: romajiStyle.copyWith(
-                            fontSize: dense ? 14 : 15,
-                            color: accent,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          item.expected.take(3).join(' / '),
+                          style: item.answeredInKana
+                              ? japaneseStyle(theme.textTheme.bodyMedium)
+                                  .copyWith(
+                                  color: accent,
+                                  fontWeight: FontWeight.w600,
+                                )
+                              : romajiStyle.copyWith(
+                                  fontSize: dense ? 14 : 15,
+                                  color: accent,
+                                  fontWeight: FontWeight.w600,
+                                ),
                         ),
                       ),
                     ],
@@ -182,7 +188,7 @@ class ItemRevealCard extends StatelessWidget {
                       ).copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
-                  if (item.alternates.isNotEmpty) ...[
+                  if (item.alternates.isNotEmpty && !item.answeredInKana) ...[
                     const SizedBox(height: 4),
                     Text(
                       'aussi accepté : ${item.alternates.join(', ')}',

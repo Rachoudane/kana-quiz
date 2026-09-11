@@ -24,8 +24,8 @@ class AnsweredEntry {
 ///
 /// Règle de saisie : la réponse est validée dès qu'elle est complète, sans
 /// appuyer sur Entrée. Entrée sert à déclarer forfait sur le mot en cours ;
-/// il faut alors recopier la bonne lecture pour repartir. Échap passe le mot
-/// sans le compter.
+/// il faut alors recopier la bonne lecture pour repartir. Échap le passe, et
+/// le compte faux lui aussi, mais sans s'arrêter.
 class QuizController extends ChangeNotifier {
   QuizController({
     required this.mode,
@@ -128,9 +128,17 @@ class QuizController extends ChangeNotifier {
       mode.teachesFirst && !_steps.containsKey(item.id);
 
   /// Saisie modifiée. Valide automatiquement dès que la lecture est complète.
-  void onInputChanged(String value) {
+  ///
+  /// `composing` est vrai tant que l'IME n'a pas confirmé sa conversion : le
+  /// texte affiché n'est encore qu'une proposition, valider à sa place
+  /// couperait la saisie en cours.
+  void onInputChanged(String value, {bool composing = false}) {
     input = value;
     state = _current.evaluate(value);
+    if (composing) {
+      notifyListeners();
+      return;
+    }
     if (state == AnswerState.complete) {
       // Recopier un mot qu'on vient de montrer n'est pas une bonne réponse.
       _advance(correct: !correcting && !teaching);
@@ -142,14 +150,26 @@ class QuizController extends ChangeNotifier {
   /// Nombre de questions avant qu'un mot passé ne revienne.
   static const int _requeueGap = 12;
 
-  /// Échap : passe le mot en cours sans le compter.
+  /// Échap : passe le mot en cours, compté comme une faute.
   ///
-  /// Ni juste ni faux : le mot retourne dans le tirage et revient plus loin
-  /// dans la partie. Une faute déjà comptée sur ce mot le reste, passer ne
-  /// l'efface pas, ça évite d'échapper à la correction sans conséquence.
+  /// Un mot qu'on ne sait pas est un mot raté : il compte faux, il entre dans
+  /// les statistiques comme tel, et il revient plus loin dans la partie. La
+  /// différence avec Entrée est qu'on ne s'arrête pas pour recopier.
   void skip() {
     if (phase == QuizPhase.finished) return;
-    _requeue(_current);
+    final passed = _current;
+    // Un mot présenté n'a pas encore été demandé : le passer ne rate rien.
+    if (!teaching && !correcting) {
+      mistakes++;
+      streak = 0;
+      _outcomes[passed.id] = false;
+      history.insert(0, AnsweredEntry(passed, correct: false));
+    }
+    if (mode.teachesFirst) {
+      _schedule(passed, remembered: false);
+    } else {
+      _requeue(passed);
+    }
     correcting = false;
     input = '';
     state = AnswerState.empty;

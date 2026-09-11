@@ -276,13 +276,19 @@ class _QuizPageState extends State<QuizPage> {
             enableSuggestions: false,
             textAlign: TextAlign.center,
             textInputAction: TextInputAction.done,
-            style: romajiStyle.copyWith(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-            ),
+            style: item.answeredInKana
+                ? japaneseStyle(theme.textTheme.bodyLarge).copyWith(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                  )
+                : romajiStyle.copyWith(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                  ),
             decoration: InputDecoration(
-              hintText:
-                  correcting || teaching ? 'recopie la lecture' : 'rōmaji',
+              hintText: correcting || teaching
+                  ? 'recopie la réponse'
+                  : (item.answeredInKana ? 'kana' : 'rōmaji'),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: borderColor, width: 1.5),
@@ -292,7 +298,10 @@ class _QuizPageState extends State<QuizPage> {
                 borderSide: BorderSide(color: borderColor, width: 2),
               ),
             ),
-            onChanged: _quiz.onInputChanged,
+            onChanged: (value) => _quiz.onInputChanged(
+              value,
+              composing: _field.value.composing.isValid,
+            ),
             onSubmitted: (_) => _quiz.giveUp(),
           ),
           const SizedBox(height: 16),
@@ -313,8 +322,8 @@ class _QuizPageState extends State<QuizPage> {
     final theme = Theme.of(context);
     return Center(
       child: Text(
-        'Entrée : afficher la réponse (compté comme une faute).\n'
-        'Échap : passer le mot, il revient plus loin.',
+        'Entrée : afficher la réponse, Échap : passer.\n'
+        'Les deux comptent une faute et le mot revient plus loin.',
         textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
@@ -341,13 +350,16 @@ class _QuizPageState extends State<QuizPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            item.reference,
+            item.expected.first,
             textAlign: TextAlign.center,
-            style: romajiStyle.copyWith(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: accent,
-            ),
+            style: item.answeredInKana
+                ? japaneseStyle(theme.textTheme.titleLarge)
+                    .copyWith(fontWeight: FontWeight.w700, color: accent)
+                : romajiStyle.copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -380,13 +392,16 @@ class _QuizPageState extends State<QuizPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            item.allReferences.take(3).join('  /  '),
+            item.expected.take(3).join('  /  '),
             textAlign: TextAlign.center,
-            style: romajiStyle.copyWith(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: failure,
-            ),
+            style: item.answeredInKana
+                ? japaneseStyle(theme.textTheme.titleLarge)
+                    .copyWith(fontWeight: FontWeight.w700, color: failure)
+                : romajiStyle.copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: failure,
+                  ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -398,7 +413,7 @@ class _QuizPageState extends State<QuizPage> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          if (item.alternates.isNotEmpty)
+          if (item.alternates.isNotEmpty && !item.answeredInKana)
             Text(
               'aussi accepté : ${item.alternates.join(', ')}',
               textAlign: TextAlign.center,

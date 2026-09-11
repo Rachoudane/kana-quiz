@@ -3,12 +3,11 @@ import '../core/models/models.dart';
 import '../core/romaji/romaji_reading.dart';
 import 'quiz_mode.dart';
 
-/// Mode production : le sens s'affiche en français, on écrit le mot.
+/// Mode production : le sens s'affiche en français, on écrit le mot en kana.
 ///
-/// Le mot se tape en rōmaji, comme partout ailleurs dans l'application : sur
-/// un clavier français, écrire en kana demanderait un IME, et c'est la lecture
-/// qu'on cherche à produire, pas la frappe japonaise. La fiche de correction
-/// montre le mot en kana et son écriture.
+/// C'est le seul mode où la saisie est en japonais, à l'IME : produire un mot
+/// c'est l'écrire, pas le transcrire. L'écriture compte, un mot en katakana
+/// s'écrit en katakana.
 ///
 /// Plusieurs mots partagent souvent le même sens. Ils sont tous acceptés :
 /// demander « maison » et refuser うち parce qu'on attendait いえ ne
@@ -29,7 +28,7 @@ class MeaningToKanaMode extends QuizMode {
   String get emoji => '訳';
 
   @override
-  String get instruction => 'Écris le mot en rōmaji.';
+  String get instruction => 'Écris le mot en kana.';
 
   @override
   List<ModeOption> get options => const [
@@ -84,6 +83,7 @@ class MeaningToKanaMode extends QuizMode {
       id: idFor(first),
       prompt: first.fr,
       promptScript: 'latin',
+      answerScript: 'kana',
       readings: group.map((w) => RomajiReading.of(w.kana)).toList(),
       // Le sens est déjà la question : le répéter sous la réponse n'apprend
       // rien. L'anglais, lui, précise souvent ce que le français élargit.

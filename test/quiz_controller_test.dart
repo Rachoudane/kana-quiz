@@ -80,14 +80,15 @@ void main() {
     quiz.dispose();
   });
 
-  test('Échap passe le mot sans le compter, et il revient', () {
+  test('Échap passe le mot, le compte faux, et il revient', () {
     final quiz = build();
     final passe = quiz.current.id;
     quiz.skip();
 
     expect(quiz.correct, 0);
-    expect(quiz.mistakes, 0);
-    expect(quiz.history, isEmpty, reason: "un mot passé n'est pas une réponse");
+    expect(quiz.mistakes, 1, reason: 'un mot passé est un mot raté');
+    expect(quiz.streak, 0);
+    expect(quiz.history.first.correct, isFalse);
     expect(quiz.current.id, isNot(passe));
 
     final vus = <String>[];
@@ -99,12 +100,12 @@ void main() {
     quiz.dispose();
   });
 
-  test("passer après une faute ne l'efface pas", () {
+  test('passer pendant une correction ne compte pas deux fois', () {
     final quiz = build();
     quiz.giveUp();
     expect(quiz.mistakes, 1);
     quiz.skip();
-    expect(quiz.mistakes, 1);
+    expect(quiz.mistakes, 1, reason: 'la faute était déjà comptée');
     expect(quiz.correcting, isFalse);
     quiz.dispose();
   });

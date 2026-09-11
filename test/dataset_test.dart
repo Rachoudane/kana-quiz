@@ -139,7 +139,7 @@ void main() {
         expect(item.prompt, isNotEmpty);
         expect(item.readings, isNotEmpty);
         expect(
-          item.evaluate(item.reference),
+          item.evaluate(item.expected.first),
           AnswerState.complete,
           reason: '${mode.id} / ${item.prompt}',
         );
@@ -162,11 +162,23 @@ void main() {
     final synonymes = items.firstWhere((i) => i.readings.length > 1);
     for (final reading in synonymes.readings) {
       expect(
-        synonymes.evaluate(reading.reference),
+        synonymes.evaluate(reading.kana),
         AnswerState.complete,
         reason: '${synonymes.prompt} refuse ${reading.kana}',
       );
     }
+
+    // La réponse s'écrit en japonais : les rōmaji ne passent pas, et
+    // l'écriture compte.
+    final mot = items.firstWhere(
+      (i) => i.readings.length == 1 && i.readings.first.kana.length > 2,
+    );
+    final kana = mot.readings.first.kana;
+    expect(mot.evaluate(mot.readings.first.reference), AnswerState.invalid);
+    expect(mot.evaluate(kana), AnswerState.complete);
+    expect(mot.evaluate(kana.substring(0, 2)), AnswerState.partial);
+    expect(mot.evaluate(' $kana '), AnswerState.complete);
+    expect(mot.evaluate(''), AnswerState.empty);
 
     // Une question de ce mode se reconstruit pour la révision.
     final rejoue = const WeakWordsMode().buildItems(
@@ -208,7 +220,7 @@ void main() {
     // Le plus raté passe devant.
     expect(ids.first, faible.id);
     for (final item in items) {
-      expect(item.evaluate(item.reference), AnswerState.complete);
+      expect(item.evaluate(item.expected.first), AnswerState.complete);
     }
   });
 

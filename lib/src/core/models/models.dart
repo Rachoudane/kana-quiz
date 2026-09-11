@@ -119,6 +119,7 @@ class QuizItem {
     required this.readings,
     required this.fr,
     required this.en,
+    this.answerScript = 'romaji',
     this.secondary,
     this.detail,
     this.examples = const [],
@@ -135,6 +136,12 @@ class QuizItem {
 
   /// Lectures acceptées. La première fournit la graphie de référence.
   final List<RomajiReading> readings;
+
+  /// Comment la réponse s'écrit : `romaji`, ou `kana` quand on la saisit
+  /// directement en japonais, à l'IME.
+  final String answerScript;
+
+  bool get answeredInKana => answerScript == 'kana';
 
   /// Sens en français, puis en anglais.
   final String fr;
@@ -162,14 +169,35 @@ class QuizItem {
   List<String> get allReferences =>
       readings.map((r) => r.reference).toSet().toList();
 
+  /// Ce qu'il faut écrire, tel qu'on l'affiche à la correction.
+  List<String> get expected => answeredInKana
+      ? readings.map((r) => r.kana).toSet().toList()
+      : allReferences;
+
   /// Évalue une saisie contre toutes les lectures acceptées.
   AnswerState evaluate(String input) {
+    if (answeredInKana) return _evaluateKana(input);
     var best = AnswerState.invalid;
     for (final reading in readings) {
       final state = reading.evaluate(input);
       if (state == AnswerState.complete) return AnswerState.complete;
       if (state == AnswerState.empty) return AnswerState.empty;
       if (state == AnswerState.partial) best = AnswerState.partial;
+    }
+    return best;
+  }
+
+  /// Compare une saisie en japonais aux lectures attendues.
+  ///
+  /// L'écriture compte : un mot qui s'écrit en katakana s'écrit en katakana.
+  /// Seuls les espaces sont ignorés, l'IME en laisse parfois traîner.
+  AnswerState _evaluateKana(String raw) {
+    final input = raw.replaceAll(RegExp(r'[\s　]+'), '');
+    if (input.isEmpty) return AnswerState.empty;
+    var best = AnswerState.invalid;
+    for (final reading in readings) {
+      if (input == reading.kana) return AnswerState.complete;
+      if (reading.kana.startsWith(input)) best = AnswerState.partial;
     }
     return best;
   }
