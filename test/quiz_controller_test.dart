@@ -24,7 +24,9 @@ void main() {
         mode: const KanaReadingMode(),
         config: kanaConfig,
         durationSeconds: duration,
-        items: const KanaReadingMode().buildItems(data, kanaConfig),
+        items: const KanaReadingMode().buildItems(
+          ModeContext(data: data, config: kanaConfig),
+        ),
         store: store,
       );
 
@@ -141,8 +143,9 @@ void main() {
   });
 
   test('le mode kanji accepte n\'importe quelle lecture', () {
-    final items = const KanjiReadingMode()
-        .buildItems(data, const {'level': '5', 'readings': 'any'});
+    final items = const KanjiReadingMode().buildItems(
+      ModeContext(data: data, config: const {'level': '5', 'readings': 'any'}),
+    );
     final item = items.firstWhere((i) => i.readings.length > 1);
     for (final reading in item.readings) {
       expect(item.evaluate(reading.reference), AnswerState.complete,

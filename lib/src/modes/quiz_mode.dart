@@ -4,6 +4,27 @@ import 'package:flutter/widgets.dart';
 
 import '../core/data/dataset.dart';
 import '../core/models/models.dart';
+import '../core/storage/progress_store.dart';
+
+/// Ce dont un mode dispose pour composer une partie.
+///
+/// Les statistiques par question sont fournies à tous les modes : c'est ce
+/// qui permet à un mode de rejouer en priorité ce qui a déjà été raté.
+class ModeContext {
+  const ModeContext({
+    required this.data,
+    required this.config,
+    this.stats = const {},
+  });
+
+  final Dataset data;
+  final Map<String, String> config;
+  final Map<String, ItemStat> stats;
+
+  String option(String id, String fallback) => config[id] ?? fallback;
+
+  int get level => int.tryParse(option('level', '5')) ?? 5;
+}
 
 /// Un choix possible pour une option de mode.
 class ModeChoice {
@@ -52,7 +73,14 @@ abstract class QuizMode {
   List<ModeOption> get options => const [];
 
   /// Construit la liste des questions, déjà mélangée.
-  List<QuizItem> buildItems(Dataset data, Map<String, String> config);
+  List<QuizItem> buildItems(ModeContext context);
+
+  /// Ce que le mode répond quand il n'a rien à proposer, `null` sinon.
+  String? emptyReason(ModeContext context) => null;
+
+  /// Ce que contient la sélection courante, en une ligne, pour l'accueil.
+  String summary(ModeContext context) =>
+      '${buildItems(context).length} questions dans cette sélection.';
 
   Map<String, String> get defaultConfig => {
         for (final option in options) option.id: option.defaultChoice,

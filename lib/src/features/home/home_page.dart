@@ -253,15 +253,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  ModeContext _context() {
+    final scope = AppScope.of(context);
+    return ModeContext(
+      data: scope.dataset,
+      config: _config,
+      stats: scope.store.itemStats,
+    );
+  }
+
   Widget _dataFootprint(BuildContext context) {
     final theme = Theme.of(context);
-    final data = AppScope.of(context).dataset;
-    final level = int.tryParse(_config['level'] ?? '5') ?? 5;
-    final total = data.wordCount(fromLevel: level);
-    final katakana = data.katakanaCount(fromLevel: level);
     return Text(
-      '$total mots dans cette sélection, dont $katakana en katakana · '
-      '${data.kanji.length} kanji.',
+      _mode.summary(_context()),
       textAlign: TextAlign.center,
       style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -271,6 +275,14 @@ class _HomePageState extends State<HomePage> {
 
   void _start() {
     final scope = AppScope.of(context);
+    // Un mode peut n'avoir rien à proposer : les mots qui résistent tant
+    // qu'aucune partie n'a été jouée. Mieux vaut le dire que lancer le chrono
+    // sur une liste vide.
+    final reason = _mode.emptyReason(_context());
+    if (reason != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => QuizPage(

@@ -44,7 +44,13 @@ class _QuizPageState extends State<QuizPage> {
       mode: widget.mode,
       config: widget.config,
       durationSeconds: widget.durationSeconds,
-      items: widget.mode.buildItems(widget.dataset, widget.config),
+      items: widget.mode.buildItems(
+        ModeContext(
+          data: widget.dataset,
+          config: widget.config,
+          stats: widget.store.itemStats,
+        ),
+      ),
       store: widget.store,
     )..addListener(_onQuizChanged);
   }

@@ -48,41 +48,48 @@ class KanjiReadingMode extends QuizMode {
       ];
 
   @override
-  List<QuizItem> buildItems(Dataset data, Map<String, String> config) {
-    final fromLevel = int.tryParse(config['level'] ?? '5') ?? 5;
-    final readingType = config['readings'] ?? 'any';
-
+  List<QuizItem> buildItems(ModeContext context) {
+    final readingType = context.option('readings', 'any');
     final items = <QuizItem>[];
-    for (final entry in data.kanji) {
-      if ((entry.jlpt ?? 0) < fromLevel) continue;
-      final readings = switch (readingType) {
-        'on' => entry.on,
-        'kun' => entry.kun,
-        _ => [...entry.on, ...entry.kun],
-      };
-      if (readings.isEmpty) continue;
-
-      final related =
-          entry.wordIds.map(data.wordById).whereType<VocabWord>().toList();
-
-      items.add(
-        QuizItem(
-          id: 'k_${entry.kanji}_$readingType',
-          prompt: entry.kanji,
-          promptScript: 'kanji',
-          readings: readings.map(RomajiReading.of).toList(),
-          fr: related.isNotEmpty ? related.first.fr : '',
-          en: entry.meanings.join(', '),
-          detail: _detail(entry),
-          examples: related.isNotEmpty ? related.first.examples : const [],
-          related: related,
-        ),
-      );
+    for (final entry in context.data.kanji) {
+      if ((entry.jlpt ?? 0) < context.level) continue;
+      final item = itemFor(context.data, entry, readingType);
+      if (item != null) items.add(item);
     }
     return shuffled(items);
   }
 
-  String _detail(KanjiEntry entry) {
+  @override
+  String summary(ModeContext context) =>
+      '${buildItems(context).length} kanji dans cette sélection.';
+
+  /// Question posée pour un kanji, `null` s'il n'a aucune lecture du type
+  /// demandé. Partagée avec les autres modes, comme pour le vocabulaire.
+  static QuizItem? itemFor(Dataset data, KanjiEntry entry, String readingType) {
+    final readings = switch (readingType) {
+      'on' => entry.on,
+      'kun' => entry.kun,
+      _ => [...entry.on, ...entry.kun],
+    };
+    if (readings.isEmpty) return null;
+
+    final related =
+        entry.wordIds.map(data.wordById).whereType<VocabWord>().toList();
+
+    return QuizItem(
+      id: 'k_${entry.kanji}_$readingType',
+      prompt: entry.kanji,
+      promptScript: 'kanji',
+      readings: readings.map(RomajiReading.of).toList(),
+      fr: related.isNotEmpty ? related.first.fr : '',
+      en: entry.meanings.join(', '),
+      detail: _detail(entry),
+      examples: related.isNotEmpty ? related.first.examples : const [],
+      related: related,
+    );
+  }
+
+  static String _detail(KanjiEntry entry) {
     final parts = <String>[];
     if (entry.on.isNotEmpty) parts.add('on ${entry.on.join('・')}');
     if (entry.kun.isNotEmpty) parts.add('kun ${entry.kun.join('・')}');

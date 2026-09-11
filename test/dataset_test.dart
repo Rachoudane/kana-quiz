@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
 import 'package:kana_quiz/src/core/models/models.dart';
+import 'package:kana_quiz/src/core/storage/progress_store.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
 import 'package:kana_quiz/src/modes/modes.dart';
 
@@ -117,7 +118,14 @@ void main() {
 
   test('chaque mode produit des questions jouables', () {
     for (final mode in quizModes) {
-      final items = mode.buildItems(data, mode.defaultConfig);
+      final context = ModeContext(data: data, config: mode.defaultConfig);
+      final items = mode.buildItems(context);
+      // Un mode de révision n'a rien à proposer tant que rien n'a été raté :
+      // il le dit, et c'est l'accueil qui refuse de lancer la partie.
+      if (mode.emptyReason(context) != null) {
+        expect(items, isEmpty, reason: mode.id);
+        continue;
+      }
       expect(items.length, greaterThan(50), reason: mode.id);
       for (final item in items.take(200)) {
         expect(item.prompt, isNotEmpty);
@@ -128,18 +136,50 @@ void main() {
     }
   });
 
+  test('les mots qui résistent rejouent ce qui a été raté', () {
+    const mode = WeakWordsMode();
+    final faible = data.words[0];
+    final solide = data.words[1];
+    final kanji = data.kanji.first.kanji;
+    final stats = {
+      faible.id: const ItemStat(6, 4),
+      solide.id: const ItemStat(6, 0),
+      'k_${kanji}_any': const ItemStat(3, 1),
+    };
+
+    final vide = ModeContext(data: data, config: const {});
+    expect(mode.buildItems(vide), isEmpty);
+    expect(mode.emptyReason(vide), isNotNull);
+
+    final context = ModeContext(data: data, config: const {}, stats: stats);
+    final items = mode.buildItems(context);
+    final ids = items.map((i) => i.id).toList();
+    expect(mode.emptyReason(context), isNull);
+    expect(ids, contains(faible.id));
+    expect(ids, contains('k_${kanji}_any'));
+    expect(ids, isNot(contains(solide.id)), reason: 'jamais raté, rien à revoir');
+    // Le plus raté passe devant.
+    expect(ids.first, faible.id);
+    for (final item in items) {
+      expect(item.evaluate(item.reference), AnswerState.complete);
+    }
+  });
+
   test('les options de niveau élargissent bien le tirage', () {
     const mode = KanaReadingMode();
-    final n5 = mode.buildItems(data, {'level': '5', 'script': 'all'});
-    final n3 = mode.buildItems(data, {'level': '3', 'script': 'all'});
-    final katakana = mode.buildItems(data, {'level': '3', 'script': 'katakana'});
+    List<QuizItem> items(QuizMode mode, Map<String, String> config) =>
+        mode.buildItems(ModeContext(data: data, config: config));
+
+    final n5 = items(mode, {'level': '5', 'script': 'all'});
+    final n3 = items(mode, {'level': '3', 'script': 'all'});
+    final katakana = items(mode, {'level': '3', 'script': 'katakana'});
     expect(n3.length, greaterThan(n5.length));
     expect(katakana.length, greaterThan(200));
     expect(katakana.every((i) => i.promptScript == 'katakana'), isTrue);
 
     const kanji = KanjiReadingMode();
-    final coreKanji = kanji.buildItems(data, {'level': '5', 'readings': 'any'});
-    final wideKanji = kanji.buildItems(data, {'level': '3', 'readings': 'any'});
+    final coreKanji = items(kanji, {'level': '5', 'readings': 'any'});
+    final wideKanji = items(kanji, {'level': '3', 'readings': 'any'});
     expect(coreKanji.length, 79);
     expect(wideKanji.length, greaterThan(coreKanji.length));
   });
@@ -147,8 +187,8 @@ void main() {
   test('le tirage est aléatoire et sans répétition avant la fin', () {
     const mode = KanaReadingMode();
     final config = {'level': '5', 'script': 'all'};
-    final first = mode.buildItems(data, config);
-    final second = mode.buildItems(data, config);
+    final first = mode.buildItems(ModeContext(data: data, config: config));
+    final second = mode.buildItems(ModeContext(data: data, config: config));
 
     expect(first.length, second.length);
     expect(
