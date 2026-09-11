@@ -233,6 +233,7 @@ class _QuizPageState extends State<QuizPage> {
     final theme = Theme.of(context);
     final item = _quiz.current;
     final correcting = _quiz.correcting;
+    final teaching = _quiz.teaching;
 
     // Par défaut la bordure ne dit rien pendant la frappe : signaler une
     // erreur, ou confirmer qu'on est sur la bonne voie, revient à souffler la
@@ -280,7 +281,8 @@ class _QuizPageState extends State<QuizPage> {
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
-              hintText: correcting ? 'recopie la lecture' : 'rōmaji',
+              hintText:
+                  correcting || teaching ? 'recopie la lecture' : 'rōmaji',
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: borderColor, width: 1.5),
@@ -296,7 +298,11 @@ class _QuizPageState extends State<QuizPage> {
           const SizedBox(height: 16),
           SizedBox(
             height: 96,
-            child: correcting ? _correction(context, item) : _hint(context),
+            child: correcting
+                ? _correction(context, item)
+                : teaching
+                    ? _lesson(context, item)
+                    : _hint(context),
           ),
         ],
       ),
@@ -313,6 +319,50 @@ class _QuizPageState extends State<QuizPage> {
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
         ),
+      ),
+    );
+  }
+
+  /// Fiche d'un mot présenté : sa lecture, son écriture et son sens.
+  ///
+  /// Même forme que la correction, mais sans la couleur de l'erreur : ce mot
+  /// n'a pas été raté, il n'a pas encore été demandé.
+  Widget _lesson(BuildContext context, QuizItem item) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            item.reference,
+            textAlign: TextAlign.center,
+            style: romajiStyle.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            [
+              if (item.secondary != null) item.secondary!,
+              if (item.fr.isNotEmpty) item.fr else item.en,
+            ].join('   ·   '),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

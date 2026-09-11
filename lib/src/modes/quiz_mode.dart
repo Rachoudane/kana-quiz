@@ -75,6 +75,13 @@ abstract class QuizMode {
   /// Construit la liste des questions, déjà mélangée.
   List<QuizItem> buildItems(ModeContext context);
 
+  /// Vrai si le mode montre chaque mot avant de le demander.
+  ///
+  /// La partie devient un apprentissage : un mot encore inconnu est présenté
+  /// avec sa lecture et son sens, il suffit de le recopier, et il revient
+  /// ensuite à intervalles croissants jusqu'à être su.
+  bool get teachesFirst => false;
+
   /// Ce que le mode répond quand il n'a rien à proposer, `null` sinon.
   String? emptyReason(ModeContext context) => null;
 

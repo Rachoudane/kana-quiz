@@ -34,6 +34,7 @@ class QuizController extends ChangeNotifier {
   })  : _items = items,
         remainingSeconds = durationSeconds {
     _current = _nextItem();
+    teaching = _teaches(_current);
     _ticker = Timer.periodic(const Duration(seconds: 1), _tick);
   }
 
@@ -60,6 +61,19 @@ class QuizController extends ChangeNotifier {
 
   /// Vrai après une erreur : la correction est affichée et il faut la recopier.
   bool correcting = false;
+
+  /// Vrai quand le mot est présenté et non demandé : sa lecture est affichée,
+  /// il n'y a qu'à la recopier, et rien n'est compté.
+  bool teaching = false;
+
+  /// Rappels d'un mot appris, en nombre de questions.
+  ///
+  /// Trois passages réussis suffisent à le considérer comme su : il sort
+  /// alors du tour et laisse la place aux mots suivants.
+  static const List<int> _reviewGaps = [3, 8, 21];
+
+  /// Palier de rappel atteint par chaque question déjà présentée.
+  final Map<String, int> _steps = {};
 
   final List<AnsweredEntry> history = [];
   final Map<String, bool> _outcomes = {};
@@ -95,12 +109,17 @@ class QuizController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Vrai si la question doit d'abord être montrée.
+  bool _teaches(QuizItem item) =>
+      mode.teachesFirst && !_steps.containsKey(item.id);
+
   /// Saisie modifiée. Valide automatiquement dès que la lecture est complète.
   void onInputChanged(String value) {
     input = value;
     state = _current.evaluate(value);
     if (state == AnswerState.complete) {
-      _advance(correct: !correcting);
+      // Recopier un mot qu'on vient de montrer n'est pas une bonne réponse.
+      _advance(correct: !correcting && !teaching);
       return;
     }
     notifyListeners();
@@ -121,17 +140,20 @@ class QuizController extends ChangeNotifier {
     input = '';
     state = AnswerState.empty;
     _current = _nextItem();
+    teaching = _teaches(_current);
     notifyListeners();
   }
 
-  void _requeue(QuizItem item) {
-    final at = min(_items.length, _cursor + _requeueGap);
+  void _requeue(QuizItem item, {int gap = _requeueGap}) {
+    final at = min(_items.length, _cursor + gap);
     _items = [..._items]..insert(at, item);
   }
 
   /// Entrée : déclare forfait sur le mot en cours et affiche la correction.
   void giveUp() {
     if (phase == QuizPhase.finished || correcting) return;
+    // Rien à abandonner sur un mot dont la lecture est déjà affichée.
+    if (teaching) return;
     mistakes++;
     streak = 0;
     _outcomes[_current.id] = false;
@@ -142,18 +164,35 @@ class QuizController extends ChangeNotifier {
   }
 
   void _advance({required bool correct}) {
+    final answered = _current;
+    final shown = teaching;
     if (correct) {
       this.correct++;
       streak++;
       if (streak > bestStreak) bestStreak = streak;
-      _outcomes.putIfAbsent(_current.id, () => true);
+      _outcomes.putIfAbsent(answered.id, () => true);
     }
-    history.insert(0, AnsweredEntry(_current, correct: correct));
+    // Un mot présenté ne rejoint pas l'historique : sa fiche est déjà à
+    // l'écran, et il n'a été ni réussi ni raté.
+    if (!shown) history.insert(0, AnsweredEntry(answered, correct: correct));
+    if (mode.teachesFirst) _schedule(answered, remembered: correct);
     correcting = false;
     input = '';
     state = AnswerState.empty;
     _current = _nextItem();
+    teaching = _teaches(_current);
     notifyListeners();
+  }
+
+  /// Replace un mot appris à son prochain rappel.
+  ///
+  /// Retrouvé de mémoire, il passe au palier suivant et revient plus tard ;
+  /// manqué, il repart du premier rappel.
+  void _schedule(QuizItem item, {required bool remembered}) {
+    final step = remembered ? (_steps[item.id] ?? 0) + 1 : 0;
+    _steps[item.id] = step;
+    if (step >= _reviewGaps.length) return;
+    _requeue(item, gap: _reviewGaps[step]);
   }
 
   /// Termine la partie. Une partie abandonnée n'entre pas au classement.

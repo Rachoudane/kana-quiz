@@ -30,6 +30,56 @@ void main() {
         store: store,
       );
 
+  test('le mode apprentissage montre le mot avant de le demander', () {
+    const mode = LearningMode();
+    const config = {'level': '5', 'script': 'all'};
+    final quiz = QuizController(
+      mode: mode,
+      config: config,
+      durationSeconds: 600,
+      items: mode.buildItems(ModeContext(data: data, config: config)),
+      store: store,
+    );
+
+    // Premier passage : la lecture est affichée, on la recopie, rien n'est
+    // compté ni porté à l'historique.
+    final premier = quiz.current;
+    expect(quiz.teaching, isTrue);
+    quiz.onInputChanged(premier.reference);
+    expect(quiz.correct, 0);
+    expect(quiz.mistakes, 0);
+    expect(quiz.history, isEmpty);
+
+    // Trois mots plus loin, il revient, et cette fois il faut le retrouver.
+    for (var i = 0; i < 3; i++) {
+      expect(quiz.teaching, isTrue, reason: 'mot ${i + 2} encore inconnu');
+      quiz.onInputChanged(quiz.current.reference);
+    }
+    expect(quiz.current.id, premier.id);
+    expect(quiz.teaching, isFalse);
+
+    quiz.onInputChanged(premier.reference);
+    expect(quiz.correct, 1);
+    expect(quiz.history.first.item.id, premier.id);
+    quiz.dispose();
+  });
+
+  test('Entrée ne compte pas de faute sur un mot présenté', () {
+    const mode = LearningMode();
+    const config = {'level': '5', 'script': 'all'};
+    final quiz = QuizController(
+      mode: mode,
+      config: config,
+      durationSeconds: 600,
+      items: mode.buildItems(ModeContext(data: data, config: config)),
+      store: store,
+    );
+    quiz.giveUp();
+    expect(quiz.mistakes, 0);
+    expect(quiz.correcting, isFalse);
+    quiz.dispose();
+  });
+
   test('Échap passe le mot sans le compter, et il revient', () {
     final quiz = build();
     final passe = quiz.current.id;
