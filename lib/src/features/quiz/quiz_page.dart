@@ -263,10 +263,7 @@ class _QuizPageState extends State<QuizPage> {
               item.prompt,
               key: const Key('prompt'),
               textAlign: TextAlign.center,
-              style: promptStyle(
-                context,
-                item.prompt.characters.length > 6 ? 56 : 76,
-              ),
+              style: promptStyle(context, promptSize(item)),
             ),
           ),
           const SizedBox(height: 28),

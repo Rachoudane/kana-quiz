@@ -31,8 +31,8 @@ class QuizController extends ChangeNotifier {
     required this.durationSeconds,
     required List<QuizItem> items,
     required this.store,
-  })  : _items = items,
-        remainingSeconds = durationSeconds {
+  }) : _items = items,
+       remainingSeconds = durationSeconds {
     _current = _nextItem();
     _ticker = Timer.periodic(const Duration(seconds: 1), _tick);
   }

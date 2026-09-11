@@ -80,7 +80,7 @@ class _HomePageState extends State<HomePage> {
                       best == null
                           ? 'Aucune partie dans cette configuration pour l\'instant.'
                           : 'Record ici : ${best.correct} bonnes réponses '
-                              '(${(best.accuracy * 100).round()} % de précision).',
+                                '(${(best.accuracy * 100).round()} % de précision).',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -126,16 +126,16 @@ class _HomePageState extends State<HomePage> {
         ),
         IconButton(
           tooltip: 'Scores',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ScoreboardPage()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ScoreboardPage())),
           icon: const Icon(Icons.leaderboard_outlined),
         ),
         IconButton(
           tooltip: 'Réglages',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsPage()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
           icon: const Icon(Icons.tune),
         ),
       ],
@@ -181,8 +181,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       mode.title,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -211,9 +212,9 @@ class _HomePageState extends State<HomePage> {
         SectionTitle(
           'Dernières parties',
           trailing: TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScoreboardPage()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const ScoreboardPage())),
             child: const Text('Tout voir'),
           ),
         ),
@@ -231,8 +232,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 Text(
                   '${run.correct}',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
@@ -280,7 +282,9 @@ class _HomePageState extends State<HomePage> {
     // sur une liste vide.
     final reason = _mode.emptyReason(_context());
     if (reason != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(reason)));
       return;
     }
     Navigator.of(context).push(

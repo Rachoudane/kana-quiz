@@ -17,15 +17,15 @@ class RunResult {
   });
 
   factory RunResult.fromJson(Map<String, dynamic> json) => RunResult(
-        modeId: json['mode'] as String,
-        config: (json['config'] as Map).cast<String, String>(),
-        durationSeconds: json['duration'] as int,
-        finishedAt: DateTime.fromMillisecondsSinceEpoch(json['at'] as int),
-        correct: json['correct'] as int,
-        mistakes: json['mistakes'] as int,
-        bestStreak: json['streak'] as int? ?? 0,
-        missedLabels: (json['missed'] as List?)?.cast<String>() ?? const [],
-      );
+    modeId: json['mode'] as String,
+    config: (json['config'] as Map).cast<String, String>(),
+    durationSeconds: json['duration'] as int,
+    finishedAt: DateTime.fromMillisecondsSinceEpoch(json['at'] as int),
+    correct: json['correct'] as int,
+    mistakes: json['mistakes'] as int,
+    bestStreak: json['streak'] as int? ?? 0,
+    missedLabels: (json['missed'] as List?)?.cast<String>() ?? const [],
+  );
 
   final String modeId;
   final Map<String, String> config;
@@ -37,15 +37,15 @@ class RunResult {
   final List<String> missedLabels;
 
   Map<String, dynamic> toJson() => {
-        'mode': modeId,
-        'config': config,
-        'duration': durationSeconds,
-        'at': finishedAt.millisecondsSinceEpoch,
-        'correct': correct,
-        'mistakes': mistakes,
-        'streak': bestStreak,
-        'missed': missedLabels,
-      };
+    'mode': modeId,
+    'config': config,
+    'duration': durationSeconds,
+    'at': finishedAt.millisecondsSinceEpoch,
+    'correct': correct,
+    'mistakes': mistakes,
+    'streak': bestStreak,
+    'missed': missedLabels,
+  };
 
   int get attempts => correct + mistakes;
 
@@ -200,12 +200,12 @@ class ProgressStore extends ChangeNotifier {
   }
 
   String exportJson() => const JsonEncoder.withIndent('  ').convert({
-        'version': 1,
-        'exportedAt': DateTime.now().toIso8601String(),
-        'runs': _runs.map((r) => r.toJson()).toList(),
-        'itemStats': _stats.map((k, v) => MapEntry(k, [v.seen, v.missed])),
-        'settings': _settings,
-      });
+    'version': 1,
+    'exportedAt': DateTime.now().toIso8601String(),
+    'runs': _runs.map((r) => r.toJson()).toList(),
+    'itemStats': _stats.map((k, v) => MapEntry(k, [v.seen, v.missed])),
+    'settings': _settings,
+  });
 
   Future<bool> importJson(String raw) async {
     try {

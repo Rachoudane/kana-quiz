@@ -3,6 +3,7 @@ import '../core/models/models.dart';
 import '../core/storage/progress_store.dart';
 import 'kana_reading_mode.dart';
 import 'kanji_reading_mode.dart';
+import 'meaning_mode.dart';
 import 'quiz_mode.dart';
 
 /// Mode de révision : les questions déjà ratées reviennent en premier.
@@ -44,11 +45,10 @@ class WeakWordsMode extends QuizMode {
   }
 
   @override
-  String? emptyReason(ModeContext context) =>
-      buildItems(context).isEmpty
-          ? 'Rien à revoir : aucune faute enregistrée pour le moment. '
-              'Joue une partie dans un autre mode et reviens ici.'
-          : null;
+  String? emptyReason(ModeContext context) => buildItems(context).isEmpty
+      ? 'Rien à revoir : aucune faute enregistrée pour le moment. '
+            'Joue une partie dans un autre mode et reviens ici.'
+      : null;
 
   @override
   String summary(ModeContext context) {
@@ -74,10 +74,14 @@ class WeakWordsMode extends QuizMode {
   /// Reconstruit une question à partir de son identifiant.
   ///
   /// Le vocabulaire garde l'identifiant du mot, les kanji celui que leur donne
-  /// le mode kanji (`k_漢_any`), réglage de lecture compris.
+  /// le mode kanji (`k_漢_any`), réglage de lecture compris, et les questions
+  /// de sens le leur (`m_v0123`).
   static QuizItem? _rebuild(Dataset data, String id) {
     final word = data.wordById(id);
     if (word != null) return KanaReadingMode.itemFor(word);
+
+    final asked = MeaningToKanaMode.wordOf(data, id);
+    if (asked != null) return MeaningToKanaMode.itemFor(data, asked);
 
     final parts = id.split('_');
     if (parts.length != 3 || parts.first != 'k') return null;

@@ -69,8 +69,7 @@ void main() {
     // Les listes source rangent 刷る, 為る et 擦る sous la lecture する : c'est
     // la ligne du niveau le plus accessible qui donne le mot, et l'entrée
     // choisie fixe l'écriture affichée comme les exemples.
-    VocabWord word(String kana) =>
-        data.words.firstWhere((w) => w.kana == kana);
+    VocabWord word(String kana) => data.words.firstWhere((w) => w.kana == kana);
 
     expect(word('する').word, 'する');
     expect(word('する').en, contains('to do'));
@@ -97,8 +96,11 @@ void main() {
         reason: '${word.kana} -> ${reading.reference}',
       );
       for (final alternate in reading.alternates) {
-        expect(reading.accepts(alternate), isTrue,
-            reason: '${word.kana} -> $alternate');
+        expect(
+          reading.accepts(alternate),
+          isTrue,
+          reason: '${word.kana} -> $alternate',
+        );
       }
     }
   });
@@ -106,12 +108,18 @@ void main() {
   test('les kanji ont au moins une lecture exploitable', () {
     expect(data.n5KanjiCount, greaterThanOrEqualTo(79));
     for (final entry in data.kanji) {
-      expect(entry.on.isNotEmpty || entry.kun.isNotEmpty, isTrue,
-          reason: entry.kanji);
+      expect(
+        entry.on.isNotEmpty || entry.kun.isNotEmpty,
+        isTrue,
+        reason: entry.kanji,
+      );
       for (final reading in [...entry.on, ...entry.kun]) {
         final parsed = RomajiReading(reading);
-        expect(parsed.accepts(parsed.reference), isTrue,
-            reason: '${entry.kanji} -> $reading');
+        expect(
+          parsed.accepts(parsed.reference),
+          isTrue,
+          reason: '${entry.kanji} -> $reading',
+        );
       }
     }
   });
@@ -130,10 +138,45 @@ void main() {
       for (final item in items.take(200)) {
         expect(item.prompt, isNotEmpty);
         expect(item.readings, isNotEmpty);
-        expect(item.evaluate(item.reference), AnswerState.complete,
-            reason: '${mode.id} / ${item.prompt}');
+        expect(
+          item.evaluate(item.reference),
+          AnswerState.complete,
+          reason: '${mode.id} / ${item.prompt}',
+        );
       }
     }
+  });
+
+  test('le mode français vers kana accepte tous les synonymes', () {
+    const mode = MeaningToKanaMode();
+    final items = mode.buildItems(
+      ModeContext(data: data, config: mode.defaultConfig),
+    );
+
+    expect(items.length, greaterThan(400));
+    expect(items.every((i) => i.promptScript == 'latin'), isTrue);
+    expect(items.every((i) => i.prompt.trim().isNotEmpty), isTrue);
+    // Le sens posé en question n'est pas répété sous la réponse.
+    expect(items.every((i) => i.fr.isEmpty), isTrue);
+
+    final synonymes = items.firstWhere((i) => i.readings.length > 1);
+    for (final reading in synonymes.readings) {
+      expect(
+        synonymes.evaluate(reading.reference),
+        AnswerState.complete,
+        reason: '${synonymes.prompt} refuse ${reading.kana}',
+      );
+    }
+
+    // Une question de ce mode se reconstruit pour la révision.
+    final rejoue = const WeakWordsMode().buildItems(
+      ModeContext(
+        data: data,
+        config: const {},
+        stats: {items.first.id: const ItemStat(3, 2)},
+      ),
+    );
+    expect(rejoue.map((i) => i.id), [items.first.id]);
   });
 
   test('les mots qui résistent rejouent ce qui a été raté', () {
@@ -157,7 +200,11 @@ void main() {
     expect(mode.emptyReason(context), isNull);
     expect(ids, contains(faible.id));
     expect(ids, contains('k_${kanji}_any'));
-    expect(ids, isNot(contains(solide.id)), reason: 'jamais raté, rien à revoir');
+    expect(
+      ids,
+      isNot(contains(solide.id)),
+      reason: 'jamais raté, rien à revoir',
+    );
     // Le plus raté passe devant.
     expect(ids.first, faible.id);
     for (final item in items) {

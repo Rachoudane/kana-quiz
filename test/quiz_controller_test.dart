@@ -21,14 +21,14 @@ void main() {
   const kanaConfig = {'level': '5', 'script': 'all'};
 
   QuizController build({int duration = 600}) => QuizController(
-        mode: const KanaReadingMode(),
-        config: kanaConfig,
-        durationSeconds: duration,
-        items: const KanaReadingMode().buildItems(
-          ModeContext(data: data, config: kanaConfig),
-        ),
-        store: store,
-      );
+    mode: const KanaReadingMode(),
+    config: kanaConfig,
+    durationSeconds: duration,
+    items: const KanaReadingMode().buildItems(
+      ModeContext(data: data, config: kanaConfig),
+    ),
+    store: store,
+  );
 
   test('Échap passe le mot sans le compter, et il revient', () {
     final quiz = build();
@@ -87,8 +87,11 @@ void main() {
     quiz.giveUp();
     expect(quiz.mistakes, 1);
     expect(quiz.correcting, isTrue);
-    expect(identical(quiz.current, item), isTrue,
-        reason: 'on reste sur le mot raté');
+    expect(
+      identical(quiz.current, item),
+      isTrue,
+      reason: 'on reste sur le mot raté',
+    );
 
     quiz.onInputChanged('zzz');
     expect(identical(quiz.current, item), isTrue);
@@ -177,8 +180,11 @@ void main() {
     );
     final item = items.firstWhere((i) => i.readings.length > 1);
     for (final reading in item.readings) {
-      expect(item.evaluate(reading.reference), AnswerState.complete,
-          reason: '${item.prompt} -> ${reading.reference}');
+      expect(
+        item.evaluate(reading.reference),
+        AnswerState.complete,
+        reason: '${item.prompt} -> ${reading.reference}',
+      );
     }
   });
 }

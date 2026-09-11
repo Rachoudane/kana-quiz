@@ -19,10 +19,10 @@ class SectionTitle extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const Spacer(),
           ?trailing,
@@ -62,12 +62,23 @@ class StatTile extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
   }
+}
+
+/// Taille du mot affiché en grand.
+///
+/// Une consigne en français tient sur plusieurs mots : elle se lit à la
+/// taille d'un titre, pas à celle d'un kanji isolé.
+double promptSize(QuizItem item, {bool dense = false}) {
+  if (item.promptScript == 'latin') return dense ? 17 : 34;
+  if (dense) return 22;
+  return item.prompt.characters.length > 6 ? 56 : 76;
 }
 
 /// Fiche affichée après une réponse : lecture, écriture, sens, exemple.
@@ -119,14 +130,20 @@ class ItemRevealCard extends StatelessWidget {
                     children: [
                       Text(
                         item.prompt,
-                        style: promptStyle(context, dense ? 22 : 26),
+                        style: promptStyle(
+                          context,
+                          item.promptScript == 'latin'
+                              ? (dense ? 15 : 18)
+                              : (dense ? 22 : 26),
+                        ),
                       ),
                       if (item.secondary != null)
                         Text(
                           item.secondary!,
-                          style: promptStyle(context, dense ? 18 : 20).copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: promptStyle(
+                            context,
+                            dense ? 18 : 20,
+                          ).copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
@@ -145,8 +162,9 @@ class ItemRevealCard extends StatelessWidget {
                   if (item.fr.isNotEmpty)
                     Text(
                       item.fr,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   if (item.en.isNotEmpty)
                     Text(
@@ -159,9 +177,9 @@ class ItemRevealCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item.detail!,
-                      style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      style: japaneseStyle(
+                        theme.textTheme.bodySmall,
+                      ).copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                   if (item.alternates.isNotEmpty) ...[
@@ -170,8 +188,9 @@ class ItemRevealCard extends StatelessWidget {
                       'aussi accepté : ${item.alternates.join(', ')}',
                       style: romajiStyle.copyWith(
                         fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.8),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.8,
+                        ),
                       ),
                     ),
                   ],
@@ -182,9 +201,9 @@ class ItemRevealCard extends StatelessWidget {
                           .take(3)
                           .map((w) => '${w.word}（${w.kana}）')
                           .join('   '),
-                      style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      style: japaneseStyle(
+                        theme.textTheme.bodySmall,
+                      ).copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                   if (example != null && !dense) ...[
@@ -222,9 +241,9 @@ class ExampleBlock extends StatelessWidget {
         children: [
           Text(
             example.jp,
-            style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
-              height: 1.5,
-            ),
+            style: japaneseStyle(
+              theme.textTheme.bodyMedium,
+            ).copyWith(height: 1.5),
           ),
           // Une phrase sans kanji se lit déjà telle quelle : la répéter en
           // kana n'apprend rien et fait croire à deux phrases.
@@ -232,10 +251,9 @@ class ExampleBlock extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               example.kana,
-              style: japaneseStyle(theme.textTheme.bodyMedium).copyWith(
-                height: 1.5,
-                color: theme.colorScheme.primary,
-              ),
+              style: japaneseStyle(
+                theme.textTheme.bodyMedium,
+              ).copyWith(height: 1.5, color: theme.colorScheme.primary),
             ),
           ],
           const SizedBox(height: 3),

@@ -103,7 +103,9 @@ class SettingsPage extends StatelessWidget {
                       ),
                       OutlinedButton.icon(
                         onPressed: () => _reset(context),
-                        style: OutlinedButton.styleFrom(foregroundColor: failure),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: failure,
+                        ),
                         icon: const Icon(Icons.delete_outline),
                         label: const Text('Tout effacer'),
                       ),
@@ -147,9 +149,9 @@ class SettingsPage extends StatelessWidget {
         Text(
           strict
               ? 'Une seule graphie est correcte : celle de la transcription '
-                  "Hepburn. Elle s'affiche sur la fiche après chaque mot."
+                    "Hepburn. Elle s'affiche sur la fiche après chaque mot."
               : 'Les autres systèmes sont acceptés (syasin, huzi, kocchi, '
-                  'tokyo). La graphie de référence reste affichée sur la fiche.',
+                    'tokyo). La graphie de référence reste affichée sur la fiche.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

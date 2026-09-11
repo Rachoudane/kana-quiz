@@ -129,19 +129,22 @@ void main() {
 
   testWidgets('une phrase sans kanji ne se répète pas', (tester) async {
     const phrase = 'シャワーにするわ。';
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(
-        body: ExampleBlock(
-          example: Example(phrase, phrase, 'I will take a shower.'),
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ExampleBlock(
+            example: Example(phrase, phrase, 'I will take a shower.'),
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.text(phrase), findsOneWidget);
   });
 
-  testWidgets('le champ récupère le focus si on clique ailleurs',
-      (tester) async {
+  testWidgets('le champ récupère le focus si on clique ailleurs', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.textContaining('Commencer'));
     await advance(tester);
@@ -161,8 +164,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('rien ne signale la direction pendant la frappe',
-      (tester) async {
+  testWidgets('rien ne signale la direction pendant la frappe', (tester) async {
     await pumpApp(tester);
     await tester.tap(find.textContaining('Commencer'));
     await advance(tester);
@@ -195,8 +197,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('les réglages expliquent les graphies acceptées',
-      (tester) async {
+  testWidgets('les réglages expliquent les graphies acceptées', (tester) async {
     await pumpApp(tester);
 
     await tester.tap(find.byIcon(Icons.tune));
