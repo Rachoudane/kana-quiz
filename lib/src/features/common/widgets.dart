@@ -165,16 +165,16 @@ class ItemRevealCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 5),
-                  if (item.fr.isNotEmpty)
+                  if (item.en.isNotEmpty)
                     Text(
-                      item.fr,
+                      item.en,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  if (item.en.isNotEmpty)
+                  if (item.fr.isNotEmpty)
                     Text(
-                      item.en,
+                      item.fr,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

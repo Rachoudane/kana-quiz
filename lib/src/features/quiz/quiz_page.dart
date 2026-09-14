@@ -365,7 +365,7 @@ class _QuizPageState extends State<QuizPage> {
           Text(
             [
               if (item.secondary != null) item.secondary!,
-              if (item.fr.isNotEmpty) item.fr else item.en,
+              if (item.en.isNotEmpty) item.en else item.fr,
             ].join('   ·   '),
             textAlign: TextAlign.center,
             maxLines: 2,
@@ -405,7 +405,7 @@ class _QuizPageState extends State<QuizPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            item.fr.isNotEmpty ? item.fr : item.en,
+            item.en.isNotEmpty ? item.en : item.fr,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

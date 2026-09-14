@@ -143,9 +143,13 @@ class QuizItem {
 
   bool get answeredInKana => answerScript == 'kana';
 
-  /// Sens en français, puis en anglais.
-  final String fr;
+  /// Sens en anglais, puis en français.
+  ///
+  /// L'anglais passe devant : JMdict en compte 218 732 entrées contre 15 336
+  /// en français, et sa glose tient un seul sens là où la française les
+  /// aplatit tous. Le français reste dessous, en retrait.
   final String en;
+  final String fr;
 
   /// Écriture complémentaire montrée après coup (kanji du mot).
   final String? secondary;

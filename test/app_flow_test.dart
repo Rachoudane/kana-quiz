@@ -112,7 +112,7 @@ void main() {
     );
     await advance(tester);
 
-    // La fiche montre le sens français, le sens anglais, et l'exemple :
+    // La fiche montre le sens anglais, le sens français, et l'exemple :
     // écriture normale, puis lecture en kana quand elle en diffère.
     expect(find.text(word.fr), findsOneWidget);
     expect(find.text(word.en), findsOneWidget);
