@@ -235,9 +235,13 @@ void main() {
     // Pas de correction : la réponse était juste.
     expect(find.text('recopie la réponse'), findsNothing);
 
+    // Sans chrono, arrêter n'est pas abandonner : la partie est enregistrée.
     await tester.tap(find.byIcon(Icons.close).first);
     await advance(tester);
-    await tester.tap(find.text('Arrêter'));
+    expect(find.text('Terminer la partie ?'), findsOneWidget);
+    await tester.tap(find.text('Terminer'));
     await tester.pumpAndSettle();
+
+    expect(find.textContaining('bonnes réponses en'), findsOneWidget);
   });
 }

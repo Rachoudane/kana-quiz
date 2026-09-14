@@ -145,17 +145,23 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
               ),
             ),
           ),
+          // Ce qui classe passe en gras : les bonnes réponses à durée fixée,
+          // la précision quand la partie n'avait pas de fin annoncée.
           SizedBox(
             width: 56,
             child: Text(
-              '${run.correct}',
+              run.isOpenEnded
+                  ? '${(run.accuracy * 100).round()} %'
+                  : '${run.correct}',
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Expanded(
             child: Text(
-              '${(run.accuracy * 100).round()} % · série ${run.bestStreak}',
+              run.isOpenEnded
+                  ? '${run.correct} bonnes · série ${run.bestStreak}'
+                  : '${(run.accuracy * 100).round()} % · série ${run.bestStreak}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

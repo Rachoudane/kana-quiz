@@ -64,6 +64,13 @@ statistiques n'ont pas à changer pour en ajouter un.
 - `Apprendre le vocabulaire` — le mot est montré, puis redemandé plus loin.
 - `Mots qui résistent` — rejoue ce qui a déjà été raté.
 
+Le chrono mesure une vitesse de lecture : il a du sens là où lire vite est la
+compétence. Les modes qui expliquent, montrent ou font réviser démarrent donc
+sans limite, et s'arrêtent quand on les arrête — ou, pour les mots qui
+résistent, quand la liste est épuisée. Les deux réglages restent disponibles
+partout. Une partie sans limite se classe à la précision, pas au nombre de
+bonnes réponses : sans chrono, en faire plus ne mesure que le temps passé.
+
 ## Développement
 
 ```bash

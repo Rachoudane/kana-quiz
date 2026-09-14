@@ -287,4 +287,106 @@ void main() {
     expect(quiz.correcting, isTrue);
     expect(quiz.current.id, question.id, reason: 'il faut recopier');
   });
+
+  test('une partie sans limite compte à l\'endroit et ne s\'arrête pas seule',
+      () {
+    const mode = ParticlesMode();
+    const config = {'focus': 'all'};
+    final quiz = QuizController(
+      mode: mode,
+      config: config,
+      durationSeconds: openEnded,
+      items: mode.buildItems(ModeContext(data: data, config: config)),
+      store: store,
+    );
+
+    expect(quiz.untimed, isTrue);
+    expect(quiz.clockSeconds, 0);
+    expect(quiz.progress, 0, reason: 'rien à jauger sans fin annoncée');
+
+    for (var i = 0; i < 3; i++) {
+      quiz.onInputChanged(quiz.current.expected.first);
+    }
+    expect(quiz.phase, QuizPhase.running);
+    expect(quiz.correct, 3);
+  });
+
+  test('arrêter une partie sans limite l\'enregistre', () async {
+    const mode = ParticlesMode();
+    const config = {'focus': 'all'};
+    final quiz = QuizController(
+      mode: mode,
+      config: config,
+      durationSeconds: openEnded,
+      items: mode.buildItems(ModeContext(data: data, config: config)),
+      store: store,
+    );
+
+    quiz.onInputChanged(quiz.current.expected.first);
+    await quiz.finish();
+
+    expect(quiz.result, isNotNull);
+    expect(quiz.result!.isOpenEnded, isTrue);
+    expect(store.runs, hasLength(1));
+    // Une réponse ne fait pas un classement.
+    expect(quiz.isRecord, isFalse);
+    expect(store.best(quiz.result!.boardKey), isNull);
+  });
+
+  test('sans chrono, les mots qui résistent s\'arrêtent avec la liste',
+      () async {
+    const mode = WeakWordsMode();
+    final rate = data.words.first;
+    final quiz = QuizController(
+      mode: mode,
+      config: mode.defaultConfig,
+      durationSeconds: openEnded,
+      items: mode.buildItems(ModeContext(
+        data: data,
+        config: mode.defaultConfig,
+        stats: {rate.id: const ItemStat(4, 3)},
+      )),
+      store: store,
+    );
+
+    expect(quiz.phase, QuizPhase.running);
+    quiz.onInputChanged(quiz.current.expected.first);
+
+    // La liste ne se remélange pas : elle est finie, la partie aussi.
+    expect(quiz.phase, QuizPhase.finished);
+    expect(quiz.correct, 1);
+  });
+
+  test('un classement sans limite se range à la précision', () async {
+    const key = 'particles|0|focus=all';
+    RunResult run(int correct, int mistakes, DateTime at) => RunResult(
+          modeId: 'particles',
+          config: const {'focus': 'all'},
+          durationSeconds: openEnded,
+          finishedAt: at,
+          correct: correct,
+          mistakes: mistakes,
+          bestStreak: correct,
+          missedLabels: const [],
+          elapsedSeconds: 600,
+        );
+
+    // Beaucoup de réponses, précision moyenne.
+    final laborieuse = run(60, 40, DateTime(2026, 9, 14, 10));
+    // Moins de réponses, presque sans faute.
+    final propre = run(28, 2, DateTime(2026, 9, 14, 11));
+    // Trop courte pour être classée.
+    final courte = run(5, 0, DateTime(2026, 9, 14, 12));
+
+    await store.saveRun(laborieuse, const {});
+    await store.saveRun(propre, const {});
+    await store.saveRun(courte, const {});
+
+    expect(store.board(key).first.finishedAt, propre.finishedAt,
+        reason: 'la précision classe, pas le volume');
+    expect(store.best(key)!.finishedAt, propre.finishedAt);
+    expect(courte.isRanked, isFalse);
+    expect(store.isRecord(courte), isFalse);
+    expect(store.isRecord(propre), isTrue);
+  });
 }

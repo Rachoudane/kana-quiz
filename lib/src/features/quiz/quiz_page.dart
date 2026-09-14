@@ -166,9 +166,11 @@ class _QuizPageState extends State<QuizPage> {
 
   Widget _topBar(BuildContext context) {
     final theme = Theme.of(context);
-    final minutes = _quiz.remainingSeconds ~/ 60;
-    final seconds = _quiz.remainingSeconds % 60;
-    final low = _quiz.remainingSeconds <= 30;
+    // Sans chrono, la pendule compte à l'endroit : elle dit depuis combien de
+    // temps on joue, elle ne met pas sous pression.
+    final minutes = _quiz.clockSeconds ~/ 60;
+    final seconds = _quiz.clockSeconds % 60;
+    final low = !_quiz.untimed && _quiz.remainingSeconds <= 30;
 
     return Column(
       children: [
@@ -204,11 +206,19 @@ class _QuizPageState extends State<QuizPage> {
             ],
           ),
         ),
-        LinearProgressIndicator(
-          value: _quiz.progress,
-          minHeight: 3,
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        ),
+        // Rien à jauger quand la partie n'a pas de fin annoncée.
+        if (_quiz.untimed)
+          Divider(
+            height: 3,
+            thickness: 3,
+            color: theme.colorScheme.surfaceContainerHighest,
+          )
+        else
+          LinearProgressIndicator(
+            value: _quiz.progress,
+            minHeight: 3,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          ),
       ],
     );
   }
@@ -473,13 +483,19 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
+  /// Arrêter une partie chronométrée, c'est l'interrompre avant la fin
+  /// annoncée : elle ne compte pas. Arrêter une partie sans limite, c'est sa
+  /// fin normale : elle compte.
   Future<void> _confirmQuit() async {
+    final untimed = _quiz.untimed;
     final quit = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Arrêter la partie ?'),
-        content: const Text(
-          'Une partie interrompue n\'est pas enregistrée au classement.',
+        title: Text(untimed ? 'Terminer la partie ?' : 'Arrêter la partie ?'),
+        content: Text(
+          untimed
+              ? 'Elle sera enregistrée avec ce que tu as répondu jusqu\'ici.'
+              : 'Une partie interrompue n\'est pas enregistrée au classement.',
         ),
         actions: [
           TextButton(
@@ -488,11 +504,11 @@ class _QuizPageState extends State<QuizPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Arrêter'),
+            child: Text(untimed ? 'Terminer' : 'Arrêter'),
           ),
         ],
       ),
     );
-    if (quit == true) await _quiz.finish(aborted: true);
+    if (quit == true) await _quiz.finish(aborted: !untimed);
   }
 }

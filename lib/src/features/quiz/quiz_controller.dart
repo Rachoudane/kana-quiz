@@ -53,6 +53,9 @@ class QuizController extends ChangeNotifier {
 
   QuizPhase phase = QuizPhase.running;
   int remainingSeconds;
+
+  /// Temps écoulé depuis le début, en secondes.
+  int elapsedSeconds = 0;
   int correct = 0;
   int mistakes = 0;
   int streak = 0;
@@ -90,8 +93,15 @@ class QuizController extends ChangeNotifier {
 
   double get accuracy => answered == 0 ? 1 : correct / answered;
 
+  /// Vrai si la partie n'a pas de chrono : elle s'arrête quand on l'arrête,
+  /// ou quand la liste du mode est épuisée.
+  bool get untimed => durationSeconds == openEnded;
+
+  /// Secondes affichées : ce qui reste, ou ce qui s'est écoulé.
+  int get clockSeconds => untimed ? elapsedSeconds : remainingSeconds;
+
   double get progress =>
-      durationSeconds == 0 ? 0 : 1 - remainingSeconds / durationSeconds;
+      untimed ? 0 : 1 - remainingSeconds / durationSeconds;
 
   QuizItem _nextItem() {
     if (_cursor >= _items.length) {
@@ -101,8 +111,20 @@ class QuizController extends ChangeNotifier {
     return _items[_cursor++];
   }
 
+  /// Vrai quand il n'y a plus rien à demander.
+  ///
+  /// Seuls les modes à passage unique s'arrêtent ainsi, et seulement sans
+  /// chrono : ailleurs la liste se remélange et le tour recommence.
+  bool get _exhausted =>
+      untimed && mode.singlePass && _cursor >= _items.length;
+
   void _tick(Timer timer) {
     if (phase == QuizPhase.finished) return;
+    elapsedSeconds++;
+    if (untimed) {
+      notifyListeners();
+      return;
+    }
     remainingSeconds--;
     if (remainingSeconds <= 0) {
       remainingSeconds = 0;
@@ -173,6 +195,10 @@ class QuizController extends ChangeNotifier {
     correcting = false;
     input = '';
     state = AnswerState.empty;
+    if (_exhausted) {
+      finish();
+      return;
+    }
     _current = _nextItem();
     teaching = _teaches(_current);
     notifyListeners();
@@ -230,6 +256,10 @@ class QuizController extends ChangeNotifier {
     correcting = false;
     input = '';
     state = AnswerState.empty;
+    if (_exhausted) {
+      finish();
+      return;
+    }
     _current = _nextItem();
     teaching = _teaches(_current);
     _say(teaching ? _current : answered);
@@ -272,6 +302,7 @@ class QuizController extends ChangeNotifier {
       mistakes: mistakes,
       bestStreak: bestStreak,
       missedLabels: missed,
+      elapsedSeconds: elapsedSeconds,
     );
     result = run;
     isRecord = store.isRecord(run);

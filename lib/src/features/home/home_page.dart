@@ -21,9 +21,15 @@ class _HomePageState extends State<HomePage> {
   late final Map<String, Map<String, String>> _configs = {
     for (final mode in quizModes) mode.id: {...mode.defaultConfig},
   };
-  int _duration = defaultDuration;
+  /// La durée se retient par mode : chacun garde la sienne, et celle de
+  /// départ est celle que le mode juge cohérente avec ce qu'il fait.
+  late final Map<String, int> _durations = {
+    for (final mode in quizModes) mode.id: mode.preferredDuration,
+  };
 
   Map<String, String> get _config => _configs[_mode.id]!;
+
+  int get _duration => _durations[_mode.id]!;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +81,8 @@ class _HomePageState extends State<HomePage> {
                       values: runDurations,
                       selected: _duration,
                       labelOf: formatDuration,
-                      onSelected: (d) => setState(() => _duration = d),
+                      onSelected: (d) =>
+                          setState(() => _durations[_mode.id] = d),
                     ),
                     const SizedBox(height: 28),
                     FilledButton(
@@ -84,10 +91,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      best == null
-                          ? 'Aucune partie dans cette configuration pour l\'instant.'
-                          : 'Record ici : ${best.correct} bonnes réponses '
-                              '(${(best.accuracy * 100).round()} % de précision).',
+                      _recordLine(best),
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -221,6 +225,26 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  /// Ce que vaut le record de cette configuration.
+  ///
+  /// Sans chrono, le nombre de bonnes réponses ne mesure que le temps passé :
+  /// c'est la précision qui classe, au-delà d'un minimum de réponses.
+  String _recordLine(RunResult? best) {
+    if (_duration == openEnded) {
+      if (best == null) {
+        return 'Aucune partie classée ici : il en faut au moins '
+            '${RunResult.minRankedAnswers} réponses.';
+      }
+      return 'Meilleure précision ici : '
+          '${(best.accuracy * 100).round()} % sur ${best.attempts} réponses.';
+    }
+    if (best == null) {
+      return 'Aucune partie dans cette configuration pour l\'instant.';
+    }
+    return 'Record ici : ${best.correct} bonnes réponses '
+        '(${(best.accuracy * 100).round()} % de précision).';
   }
 
   Widget _recent(BuildContext context, ProgressStore store) {

@@ -27,6 +27,9 @@ class LearningMode extends QuizMode {
   String get emoji => '学';
 
   @override
+  int get preferredDuration => openEnded;
+
+  @override
   String get instruction => 'Recopie la lecture, puis retrouve-la de mémoire.';
 
   @override

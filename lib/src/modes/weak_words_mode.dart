@@ -36,6 +36,13 @@ class WeakWordsMode extends QuizMode {
   // rōmaji, un sens et une particule se tapent en kana. Le champ le rappelle
   // question par question, la consigne ne peut que rester générale.
   @override
+  int get preferredDuration => openEnded;
+
+  // La liste est finie : une fois revue, la partie est finie aussi.
+  @override
+  bool get singlePass => true;
+
+  @override
   String get instruction => 'Tape la réponse : rōmaji ou kana selon la question.';
 
   @override

@@ -92,7 +92,11 @@ class ResultsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'bonnes réponses en ${formatDuration(durationSeconds)}',
+                        result.isOpenEnded
+                            ? 'bonnes réponses en '
+                                '${formatElapsed(result.elapsedSeconds)}'
+                            : 'bonnes réponses en '
+                                '${formatDuration(durationSeconds)}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

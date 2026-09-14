@@ -101,6 +101,19 @@ abstract class QuizMode {
   /// Ce que l'utilisateur doit taper, en une phrase.
   String get instruction;
 
+  /// Durée proposée par défaut quand on choisit ce mode.
+  ///
+  /// Le chrono mesure une vitesse de lecture : il a du sens là où lire vite
+  /// est la compétence. Un mode qui explique, montre ou fait réviser pousse
+  /// au contraire à prendre le temps — le compte à rebours y travaillerait
+  /// contre le mode.
+  int get preferredDuration => defaultDuration;
+
+  /// Vrai si la liste ne se rejoue pas une fois épuisée.
+  ///
+  /// Sans chrono, une liste finie doit pouvoir s'arrêter d'elle-même.
+  bool get singlePass => false;
+
   @protected
   List<T> shuffled<T>(List<T> items, [int? seed]) {
     final copy = [...items]..shuffle(Random(seed));
@@ -108,11 +121,24 @@ abstract class QuizMode {
   }
 }
 
-/// Durées de partie proposées, en secondes.
-const List<int> runDurations = [60, 180, 300, 600, 900];
+/// Durées de partie proposées, en secondes. `0` = sans limite.
+const List<int> runDurations = [60, 180, 300, 600, 900, openEnded];
 const int defaultDuration = 600;
 
+/// Durée d'une partie qui s'arrête quand on l'arrête.
+const int openEnded = 0;
+
+/// Durée réellement jouée, en clair : « 4 min 32 ».
+String formatElapsed(int seconds) {
+  final minutes = seconds ~/ 60;
+  final rest = seconds % 60;
+  if (minutes == 0) return '$rest s';
+  if (rest == 0) return '$minutes min';
+  return '$minutes min $rest';
+}
+
 String formatDuration(int seconds) {
+  if (seconds == openEnded) return 'Sans limite';
   if (seconds % 60 == 0) return '${seconds ~/ 60} min';
   return '${seconds}s';
 }

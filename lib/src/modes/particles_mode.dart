@@ -30,6 +30,9 @@ class ParticlesMode extends QuizMode {
   String get emoji => 'を';
 
   @override
+  int get preferredDuration => openEnded;
+
+  @override
   String get instruction => 'Écris la particule qui manque.';
 
   @override

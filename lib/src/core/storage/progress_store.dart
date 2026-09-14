@@ -14,7 +14,8 @@ class RunResult {
     required this.mistakes,
     required this.bestStreak,
     required this.missedLabels,
-  });
+    int? elapsedSeconds,
+  }) : elapsedSeconds = elapsedSeconds ?? durationSeconds;
 
   factory RunResult.fromJson(Map<String, dynamic> json) => RunResult(
         modeId: json['mode'] as String,
@@ -25,11 +26,17 @@ class RunResult {
         mistakes: json['mistakes'] as int,
         bestStreak: json['streak'] as int? ?? 0,
         missedLabels: (json['missed'] as List?)?.cast<String>() ?? const [],
+        elapsedSeconds: json['elapsed'] as int?,
       );
 
   final String modeId;
   final Map<String, String> config;
+  /// Durée annoncée, `0` pour une partie sans limite.
   final int durationSeconds;
+
+  /// Durée réellement jouée. Égale à [durationSeconds] pour une partie
+  /// chronométrée, mesurée au chrono pour une partie sans limite.
+  final int elapsedSeconds;
   final DateTime finishedAt;
   final int correct;
   final int mistakes;
@@ -45,6 +52,7 @@ class RunResult {
         'mistakes': mistakes,
         'streak': bestStreak,
         'missed': missedLabels,
+        'elapsed': elapsedSeconds,
       };
 
   int get attempts => correct + mistakes;
@@ -52,7 +60,21 @@ class RunResult {
   double get accuracy => attempts == 0 ? 0 : correct / attempts;
 
   double get perMinute =>
-      durationSeconds == 0 ? 0 : correct * 60 / durationSeconds;
+      elapsedSeconds == 0 ? 0 : correct * 60 / elapsedSeconds;
+
+  /// Vrai si la partie s'est jouée sans chrono.
+  bool get isOpenEnded => durationSeconds == 0;
+
+  /// Nombre de réponses en dessous duquel une partie sans limite n'entre pas
+  /// au classement.
+  ///
+  /// Sans chrono, « 80 bonnes réponses » ne veut rien dire : il suffit de
+  /// jouer plus longtemps. Ces parties se classent donc à la précision — et
+  /// une précision sur trois réponses n'en est pas une.
+  static const int minRankedAnswers = 20;
+
+  /// Vrai si la partie peut prétendre au classement de son tableau.
+  bool get isRanked => !isOpenEnded || attempts >= minRankedAnswers;
 
   /// Clé de classement : un record se compare à durée et réglages identiques.
   String get boardKey => boardKeyFor(modeId, durationSeconds, config);
@@ -149,9 +171,24 @@ class ProgressStore extends ChangeNotifier {
   }
 
   /// Parties d'un même classement, de la meilleure à la moins bonne.
+  /// Parties d'un classement, la meilleure en tête.
+  ///
+  /// Une partie chronométrée se juge au nombre de bonnes réponses : à durée
+  /// égale, en faire plus est meilleur. Une partie sans limite se juge à la
+  /// précision, le nombre ne mesurant plus que le temps passé.
   List<RunResult> board(String boardKey) {
-    final list = _runs.where((r) => r.boardKey == boardKey).toList();
+    // Une partie trop courte pour être classée n'apparaît pas au classement.
+    // Elle reste dans l'historique : elle a eu lieu, elle ne se compare pas.
+    final list = _runs
+        .where((r) => r.boardKey == boardKey && r.isRanked)
+        .toList();
+    final openEnded = list.isNotEmpty && list.first.isOpenEnded;
     list.sort((a, b) {
+      if (openEnded) {
+        final byAccuracy = b.accuracy.compareTo(a.accuracy);
+        if (byAccuracy != 0) return byAccuracy;
+        return b.correct.compareTo(a.correct);
+      }
       final byScore = b.correct.compareTo(a.correct);
       if (byScore != 0) return byScore;
       return b.accuracy.compareTo(a.accuracy);
@@ -166,10 +203,14 @@ class ProgressStore extends ChangeNotifier {
 
   /// Vrai si la partie est un nouveau record pour son classement.
   bool isRecord(RunResult run) {
-    final previous = _runs.where(
-      (r) => r.boardKey == run.boardKey && r.finishedAt != run.finishedAt,
-    );
+    if (!run.isRanked) return false;
+    final previous = _runs
+        .where((r) => r.boardKey == run.boardKey && r.finishedAt != run.finishedAt)
+        .where((r) => r.isRanked);
     if (previous.isEmpty) return true;
+    if (run.isOpenEnded) {
+      return previous.every((r) => r.accuracy < run.accuracy);
+    }
     return previous.every((r) => r.correct < run.correct);
   }
 
@@ -178,7 +219,7 @@ class ProgressStore extends ChangeNotifier {
   int get totalAnswered => _runs.fold(0, (sum, r) => sum + r.correct);
 
   Duration get totalTime =>
-      Duration(seconds: _runs.fold(0, (sum, r) => sum + r.durationSeconds));
+      Duration(seconds: _runs.fold(0, (sum, r) => sum + r.elapsedSeconds));
 
   /// Questions les plus souvent ratées, pour un futur mode « à revoir ».
   List<MapEntry<String, ItemStat>> weakest({int limit = 20}) {
