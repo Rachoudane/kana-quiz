@@ -232,4 +232,59 @@ void main() {
           reason: '${item.prompt} -> ${reading.reference}');
     }
   });
+
+  test('Entrée pendant la conversion de l\'IME ne compte pas faux', () {
+    const mode = ParticlesMode();
+    const config = {'focus': 'all'};
+    final quiz = QuizController(
+      mode: mode,
+      config: config,
+      durationSeconds: 600,
+      items: mode.buildItems(ModeContext(data: data, config: config)),
+      store: store,
+    );
+
+    final question = quiz.current;
+    final bonne = question.expected.first;
+
+    // L'IME propose sa conversion : le texte est là, mais pas confirmé.
+    quiz.onInputChanged(bonne, composing: true);
+    // La touche Entrée qui confirme la conversion appartient à la saisie.
+    quiz.giveUp(composing: true);
+
+    expect(quiz.mistakes, 0, reason: 'la conversion a été comptée faux');
+    expect(quiz.correcting, isFalse);
+    expect(quiz.current.id, question.id, reason: 'la question a changé');
+
+    // L'IME confirme : la réponse est juste et la question passe.
+    quiz.onInputChanged(bonne);
+    expect(quiz.correct, 1);
+    expect(quiz.mistakes, 0);
+    expect(quiz.current.id, isNot(question.id));
+  });
+
+  test('Entrée sur une réponse déjà juste la valide au lieu d\'abandonner', () {
+    final quiz = build();
+    final question = quiz.current;
+
+    quiz.onInputChanged(question.reference, composing: true);
+    quiz.giveUp();
+
+    expect(quiz.correct, 1);
+    expect(quiz.mistakes, 0);
+    expect(quiz.correcting, isFalse);
+    expect(quiz.current.id, isNot(question.id));
+  });
+
+  test('Entrée sur une saisie incomplète abandonne toujours', () {
+    final quiz = build();
+    final question = quiz.current;
+
+    quiz.onInputChanged('zzz');
+    quiz.giveUp();
+
+    expect(quiz.mistakes, 1);
+    expect(quiz.correcting, isTrue);
+    expect(quiz.current.id, question.id, reason: 'il faut recopier');
+  });
 }

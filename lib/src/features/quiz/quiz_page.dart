@@ -314,7 +314,8 @@ class _QuizPageState extends State<QuizPage> {
               value,
               composing: _field.value.composing.isValid,
             ),
-            onSubmitted: (_) => _quiz.giveUp(),
+            onSubmitted: (_) =>
+                _quiz.giveUp(composing: _field.value.composing.isValid),
           ),
           const SizedBox(height: 16),
           SizedBox(

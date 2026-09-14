@@ -184,10 +184,26 @@ class QuizController extends ChangeNotifier {
   }
 
   /// Entrée : déclare forfait sur le mot en cours et affiche la correction.
-  void giveUp() {
+  ///
+  /// Deux cas où Entrée n'est pas un abandon.
+  ///
+  /// L'IME confirme sa conversion par Entrée : cette touche-là appartient à la
+  /// saisie, pas au quiz. Taper « ni » puis Entrée pour obtenir に comptait
+  /// faux, et la particule arrivait dans le champ après coup — d'autant plus
+  /// visible sur les particules, où la réponse tient en un kana et où l'on
+  /// valide donc toujours pendant la conversion.
+  ///
+  /// Et une réponse déjà juste au moment où Entrée arrive se valide : on ne
+  /// peut pas abandonner ce qu'on vient de trouver.
+  void giveUp({bool composing = false}) {
     if (phase == QuizPhase.finished || correcting) return;
     // Rien à abandonner sur un mot dont la lecture est déjà affichée.
     if (teaching) return;
+    if (composing) return;
+    if (state == AnswerState.complete) {
+      _advance(correct: true);
+      return;
+    }
     mistakes++;
     streak = 0;
     _outcomes[_current.id] = false;
