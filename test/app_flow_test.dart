@@ -244,4 +244,46 @@ void main() {
 
     expect(find.textContaining('bonnes réponses en'), findsOneWidget);
   });
+
+  testWidgets('une particule écrite à l\'IME se valide en une seule Entrée',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('Particules'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    final phrase = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+    final slot = dataset.particles.firstWhere((s) => s.blanked == phrase);
+
+    // L'IME propose sa conversion : le texte est posé, encore souligné.
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: slot.answer,
+        selection: TextSelection.collapsed(offset: slot.answer.length),
+        composing: TextRange(start: 0, end: slot.answer.length),
+      ),
+    );
+    await advance(tester);
+    expect(find.text('recopie la réponse'), findsNothing);
+
+    // Entrée : elle confirme la conversion et valide la réponse.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await advance(tester);
+
+    expect(find.text('recopie la réponse'), findsNothing,
+        reason: 'la conversion a été prise pour un abandon');
+    expect(
+      tester.widget<Text>(find.byKey(const Key('prompt'))).data,
+      isNot(phrase),
+      reason: 'la question aurait dû passer',
+    );
+    expect(find.text(particleNote(slot)), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Terminer'));
+    await tester.pumpAndSettle();
+  });
 }

@@ -65,6 +65,39 @@ class QuizController extends ChangeNotifier {
   String input = '';
   AnswerState state = AnswerState.empty;
 
+  /// Ce qui vient d'être validé, et quand.
+  ///
+  /// Écrire à l'IME produit deux événements pour un seul geste : la fin de
+  /// conversion, et la touche Entrée qui l'a déclenchée. Ils n'arrivent pas
+  /// toujours dans cet ordre, et celui qui arrive en second tombe sur la
+  /// question suivante — la touche l'abandonnerait, le texte s'écrirait dans
+  /// son champ. Pendant un court instant après une validation, ces deux
+  /// retardataires sont donc ignorés.
+  String? _validatedText;
+  DateTime? _validatedAt;
+
+  /// Vrai si la réponse en cours est passée par une conversion.
+  ///
+  /// Sans IME il n'y a qu'un événement par geste, et rien à rattraper : la
+  /// garde ne s'arme que pour une réponse réellement convertie, sans quoi elle
+  /// avalerait des saisies parfaitement normales.
+  bool _composed = false;
+
+  /// Durée pendant laquelle un reliquat d'IME est ignoré.
+  ///
+  /// Assez long pour couvrir l'écart entre les deux événements, assez court
+  /// pour qu'une vraie frappe qui suit ne soit jamais prise pour un reliquat.
+  static const Duration imeGrace = Duration(milliseconds: 250);
+
+  /// Horloge du contrôleur, remplaçable pour les tests.
+  @visibleForTesting
+  DateTime Function() now = DateTime.now;
+
+  bool get _withinGrace {
+    final at = _validatedAt;
+    return at != null && now().difference(at) < imeGrace;
+  }
+
   /// Vrai après une erreur : la correction est affichée et il faut la recopier.
   bool correcting = false;
 
@@ -155,8 +188,16 @@ class QuizController extends ChangeNotifier {
   /// texte affiché n'est encore qu'une proposition, valider à sa place
   /// couperait la saisie en cours.
   void onInputChanged(String value, {bool composing = false}) {
+    // Fin de conversion arrivée après coup : ce texte a déjà été compté, il
+    // ne doit pas remplir le champ de la question suivante.
+    if (value == _validatedText && _withinGrace) {
+      _validatedText = null;
+      notifyListeners();
+      return;
+    }
     input = value;
     state = _current.evaluate(value);
+    if (composing) _composed = true;
     if (composing) {
       notifyListeners();
       return;
@@ -179,6 +220,9 @@ class QuizController extends ChangeNotifier {
   /// différence avec Entrée est qu'on ne s'arrête pas pour recopier.
   void skip() {
     if (phase == QuizPhase.finished) return;
+    _validatedText = null;
+    _validatedAt = null;
+    _composed = false;
     final passed = _current;
     // Un mot présenté n'a pas encore été demandé : le passer ne rate rien.
     if (!teaching && !correcting) {
@@ -219,17 +263,26 @@ class QuizController extends ChangeNotifier {
   /// visible sur les particules, où la réponse tient en un kana et où l'on
   /// valide donc toujours pendant la conversion.
   ///
-  /// Et une réponse déjà juste au moment où Entrée arrive se valide : on ne
-  /// peut pas abandonner ce qu'on vient de trouver.
-  void giveUp({bool composing = false}) {
+  /// Deux cas où Entrée n'est pas un abandon.
+  ///
+  /// Une réponse déjà juste se valide : on ne peut pas déclarer forfait sur ce
+  /// qu'on vient de trouver. C'est ce qui rattrape l'écriture à l'IME, où la
+  /// touche qui confirme la conversion est aussi celle qui valide — Flutter
+  /// efface la zone de conversion avant d'appeler `onSubmitted`, on ne peut
+  /// donc pas distinguer les deux autrement.
+  ///
+  /// Et une touche qui arrive sur un champ vide juste après une validation est
+  /// le reliquat du geste précédent, pas un abandon de la question suivante,
+  /// qu'on n'a pas encore eu le temps de lire.
+  void giveUp() {
     if (phase == QuizPhase.finished || correcting) return;
     // Rien à abandonner sur un mot dont la lecture est déjà affichée.
     if (teaching) return;
-    if (composing) return;
     if (state == AnswerState.complete) {
       _advance(correct: true);
       return;
     }
+    if (input.isEmpty && _withinGrace) return;
     mistakes++;
     streak = 0;
     _outcomes[_current.id] = false;
@@ -243,6 +296,10 @@ class QuizController extends ChangeNotifier {
   void _advance({required bool correct}) {
     final answered = _current;
     final shown = teaching;
+    final guard = correct && _composed;
+    _validatedText = guard ? input : null;
+    _validatedAt = guard ? now() : null;
+    _composed = false;
     if (correct) {
       this.correct++;
       streak++;

@@ -233,35 +233,111 @@ void main() {
     }
   });
 
-  test('Entrée pendant la conversion de l\'IME ne compte pas faux', () {
+  // Écrire à l'IME produit deux événements pour un seul geste : la fin de
+  // conversion, et la touche Entrée qui l'a déclenchée. Flutter efface la zone
+  // de conversion avant d'appeler onSubmitted — le contrôleur ne peut donc pas
+  // savoir qu'une touche vient de l'IME, et doit rester juste dans les deux
+  // ordres d'arrivée possibles.
+
+  QuizController particles() {
     const mode = ParticlesMode();
     const config = {'focus': 'all'};
-    final quiz = QuizController(
+    return QuizController(
       mode: mode,
       config: config,
-      durationSeconds: 600,
+      durationSeconds: openEnded,
       items: mode.buildItems(ModeContext(data: data, config: config)),
       store: store,
     );
+  }
 
+  test('Entrée arrivée avant la fin de conversion valide la réponse', () {
+    final quiz = particles();
     final question = quiz.current;
     final bonne = question.expected.first;
 
-    // L'IME propose sa conversion : le texte est là, mais pas confirmé.
+    // L'IME propose sa conversion, le texte n'est pas confirmé.
     quiz.onInputChanged(bonne, composing: true);
-    // La touche Entrée qui confirme la conversion appartient à la saisie.
-    quiz.giveUp(composing: true);
+    expect(quiz.correct, 0, reason: 'une proposition ne vaut pas validation');
 
-    expect(quiz.mistakes, 0, reason: 'la conversion a été comptée faux');
-    expect(quiz.correcting, isFalse);
-    expect(quiz.current.id, question.id, reason: 'la question a changé');
-
-    // L'IME confirme : la réponse est juste et la question passe.
-    quiz.onInputChanged(bonne);
+    // Entrée : Flutter a déjà effacé la zone de conversion, le contrôleur ne
+    // voit qu'une touche nue sur une réponse juste. Il la valide.
+    quiz.giveUp();
     expect(quiz.correct, 1);
     expect(quiz.mistakes, 0);
+    expect(quiz.correcting, isFalse);
     expect(quiz.current.id, isNot(question.id));
+
+    // La fin de conversion arrive ensuite : déjà comptée, elle ne doit pas
+    // remplir le champ de la question suivante.
+    final suivante = quiz.current;
+    quiz.onInputChanged(bonne);
+    expect(quiz.input, isEmpty, reason: 'le reliquat a rempli le champ');
+    expect(quiz.current.id, suivante.id);
+    expect(quiz.correct, 1);
+    expect(quiz.mistakes, 0);
   });
+
+  test('Entrée arrivée après la fin de conversion n\'abandonne pas', () {
+    final quiz = particles();
+    final bonne = quiz.current.expected.first;
+
+    // Dans l'autre ordre, la fin de conversion valide toute seule.
+    quiz.onInputChanged(bonne, composing: true);
+    quiz.onInputChanged(bonne);
+    expect(quiz.correct, 1);
+    final suivante = quiz.current;
+
+    // La touche Entrée arrive après, sur une question qu'on n'a pas lue.
+    quiz.giveUp();
+    expect(quiz.mistakes, 0, reason: 'la question suivante a été abandonnée');
+    expect(quiz.correcting, isFalse);
+    expect(quiz.current.id, suivante.id);
+  });
+
+  test('passé le délai de grâce, Entrée révèle bien la réponse', () {
+    final quiz = particles();
+    var horloge = DateTime(2026, 9, 14, 20);
+    quiz.now = () => horloge;
+
+    quiz.onInputChanged(quiz.current.expected.first);
+    expect(quiz.correct, 1);
+
+    // On prend le temps de lire la question suivante, on ne la sait pas.
+    horloge = horloge.add(const Duration(seconds: 3));
+    quiz.giveUp();
+    expect(quiz.mistakes, 1);
+    expect(quiz.correcting, isTrue, reason: 'la réponse doit s\'afficher');
+  });
+
+  test('une vraie frappe qui suit une validation n\'est pas avalée', () {
+    final quiz = particles();
+    final bonne = quiz.current.expected.first;
+    quiz.onInputChanged(bonne, composing: true);
+    quiz.giveUp();
+
+    // Rien n'est arrivé en retard : la frappe suivante passe normalement.
+    quiz.onInputChanged('z');
+    expect(quiz.input, 'z');
+  });
+
+  test('deux questions de suite avec la même réponse restent jouables', () {
+    final quiz = particles();
+    var horloge = DateTime(2026, 9, 14, 20);
+    quiz.now = () => horloge;
+
+    final bonne = quiz.current.expected.first;
+    quiz.onInputChanged(bonne, composing: true);
+    quiz.onInputChanged(bonne);
+    expect(quiz.correct, 1);
+
+    // Le reliquat n'est ignoré que dans l'instant qui suit. La même particule
+    // écrite un peu plus tard est une vraie réponse, pas un écho.
+    horloge = horloge.add(const Duration(seconds: 1));
+    quiz.onInputChanged(bonne, composing: true);
+    expect(quiz.input, bonne, reason: 'la frappe a été prise pour un reliquat');
+  });
+
 
   test('Entrée sur une réponse déjà juste la valide au lieu d\'abandonner', () {
     final quiz = build();
