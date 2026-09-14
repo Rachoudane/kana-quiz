@@ -286,4 +286,54 @@ void main() {
     await tester.tap(find.text('Terminer'));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('en correction, recopier à l\'IME repart', (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('Particules'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    final phrase = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+    final slot = dataset.particles.firstWhere((s) => s.blanked == phrase);
+    final fausse = slot.answers.contains('を') ? 'に' : 'を';
+
+    // Une particule fausse, validée : la correction s'affiche.
+    await tester.enterText(find.byType(TextField), fausse);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await advance(tester);
+    expect(find.text('recopie la réponse'), findsOneWidget);
+
+    // On recopie à l'IME : le texte est posé, la conversion n'est pas
+    // confirmée. Rien ne doit bouger.
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: slot.answer,
+        selection: TextSelection.collapsed(offset: slot.answer.length),
+        composing: TextRange(start: 0, end: slot.answer.length),
+      ),
+    );
+    await advance(tester);
+    expect(find.text('recopie la réponse'), findsOneWidget);
+
+    // Entrée confirme la conversion : seule la zone de conversion change, le
+    // texte est le même. C'est la relecture du champ qui doit débloquer.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await advance(tester);
+
+    expect(find.text('recopie la réponse'), findsNothing,
+        reason: 'resté bloqué en correction');
+    expect(
+      tester.widget<Text>(find.byKey(const Key('prompt'))).data,
+      isNot(phrase),
+    );
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Terminer'));
+    await tester.pumpAndSettle();
+  });
 }

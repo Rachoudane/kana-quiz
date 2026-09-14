@@ -251,6 +251,43 @@ void main() {
     );
   }
 
+  test('en correction, la réponse écrite à l\'IME débloque la question', () {
+    final quiz = particles();
+    final question = quiz.current;
+    final bonne = question.expected.first;
+    final fausse = bonne == 'に' ? 'を' : 'に';
+
+    // On se trompe : la correction s'affiche, il faut recopier la réponse.
+    quiz.onInputChanged(fausse, composing: true);
+    quiz.submit(fausse);
+    expect(quiz.correcting, isTrue);
+    expect(quiz.mistakes, 1);
+
+    // On recopie à l'IME. Tant que la conversion n'est pas confirmée, rien.
+    quiz.onInputChanged(bonne, composing: true);
+    expect(quiz.correcting, isTrue);
+    expect(quiz.current.id, question.id);
+
+    // Entrée confirme la conversion. Le texte n'a pas changé, seulement son
+    // état : c'est la relecture du champ qui débloque, pas `onChanged`.
+    quiz.submit(bonne);
+    expect(quiz.correcting, isFalse, reason: 'resté bloqué en correction');
+    expect(quiz.current.id, isNot(question.id));
+    // Recopier une correction ne vaut pas une bonne réponse.
+    expect(quiz.correct, 0);
+    expect(quiz.mistakes, 1);
+  });
+
+  test('Entrée sur un champ vide affiche toujours la réponse', () {
+    final quiz = particles();
+    final question = quiz.current;
+
+    quiz.submit('');
+    expect(quiz.mistakes, 1);
+    expect(quiz.correcting, isTrue);
+    expect(quiz.current.id, question.id);
+  });
+
   test('Entrée arrivée avant la fin de conversion valide la réponse', () {
     final quiz = particles();
     final question = quiz.current;

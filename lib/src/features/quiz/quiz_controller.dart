@@ -253,23 +253,30 @@ class QuizController extends ChangeNotifier {
     _items = [..._items]..insert(at, item);
   }
 
-  /// Entrée : déclare forfait sur le mot en cours et affiche la correction.
+  /// Entrée. Confirme d'abord le texte du champ, puis décide.
   ///
-  /// Deux cas où Entrée n'est pas un abandon.
+  /// L'IME peut avoir laissé sa conversion en cours : le texte est à l'écran,
+  /// mais le quiz ne l'a pas encore reçu comme réponse, et Flutter ne
+  /// redéclenche pas `onChanged` quand seule la zone de conversion change.
+  /// D'où cette relecture. Sans elle, une réponse écrite à l'IME restait
+  /// invisible au quiz — et en correction, où `giveUp` ne fait rien, plus
+  /// rien ne pouvait débloquer la question.
+  void submit(String text) {
+    final avant = _current.id;
+    onInputChanged(text);
+    // La relecture a suffi : la réponse était juste, la question a passé.
+    if (_current.id != avant || phase == QuizPhase.finished) return;
+    giveUp();
+  }
+
+  /// Déclare forfait sur le mot en cours et affiche la correction.
   ///
-  /// L'IME confirme sa conversion par Entrée : cette touche-là appartient à la
-  /// saisie, pas au quiz. Taper « ni » puis Entrée pour obtenir に comptait
-  /// faux, et la particule arrivait dans le champ après coup — d'autant plus
-  /// visible sur les particules, où la réponse tient en un kana et où l'on
-  /// valide donc toujours pendant la conversion.
-  ///
-  /// Deux cas où Entrée n'est pas un abandon.
+  /// Deux cas où ce n'est pas un abandon.
   ///
   /// Une réponse déjà juste se valide : on ne peut pas déclarer forfait sur ce
-  /// qu'on vient de trouver. C'est ce qui rattrape l'écriture à l'IME, où la
-  /// touche qui confirme la conversion est aussi celle qui valide — Flutter
-  /// efface la zone de conversion avant d'appeler `onSubmitted`, on ne peut
-  /// donc pas distinguer les deux autrement.
+  /// qu'on vient de trouver. Flutter efface la zone de conversion avant
+  /// d'appeler `onSubmitted`, on ne peut de toute façon pas savoir ici si la
+  /// touche vient de l'IME.
   ///
   /// Et une touche qui arrive sur un champ vide juste après une validation est
   /// le reliquat du geste précédent, pas un abandon de la question suivante,
