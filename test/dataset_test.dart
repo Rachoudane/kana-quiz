@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
+import 'package:kana_quiz/src/core/data/particle_rules.dart';
 import 'package:kana_quiz/src/core/models/models.dart';
 import 'package:kana_quiz/src/core/storage/progress_store.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
@@ -265,5 +266,122 @@ void main() {
       first.length,
       reason: 'aucun mot ne revient avant que la liste soit épuisée',
     );
+  });
+
+  test('chaque phrase à trou est bien percée', () {
+    final kanji = RegExp('[一-龯々]');
+    expect(data.particles.length, greaterThan(3000));
+
+    for (final slot in data.particles) {
+      // Le trou doit tomber exactement sur la particule annoncée : c'est la
+      // seule chose que l'analyse morphologique pouvait rater.
+      expect(
+        slot.sentence.substring(slot.at, slot.at + slot.answer.length),
+        slot.answer,
+        reason: slot.sentence,
+      );
+      expect(slot.blanked.contains('＿'), isTrue, reason: slot.sentence);
+      expect(slot.blanked.length, lessThan(slot.sentence.length + 2));
+
+      // Aucun kanji : à ce niveau la phrase ne serait pas lisible.
+      expect(kanji.hasMatch(slot.sentence), isFalse, reason: slot.sentence);
+      expect(slot.translation, isNotEmpty, reason: slot.sentence);
+    }
+  });
+
+  test('chaque trou porte une raison', () {
+    for (final slot in data.particles) {
+      expect(
+        particleRules.containsKey(slot.rule),
+        isTrue,
+        reason: 'motif sans explication : ${slot.rule}',
+      );
+      expect(particleNote(slot), isNotEmpty, reason: slot.rule);
+      expect(particleLabel(slot), isNotEmpty, reason: slot.rule);
+    }
+  });
+
+  test('aucune particule ne dépasse le tiers du jeu', () {
+    final counts = <String, int>{};
+    for (final slot in data.particles) {
+      counts[slot.answer] = (counts[slot.answer] ?? 0) + 1;
+    }
+    // Sans plafond, は vaut 40 % des trous et le mode apprend à répondre は.
+    for (final entry in counts.entries) {
+      expect(
+        entry.value / data.particles.length,
+        lessThan(0.34),
+        reason: '${entry.key} écrase le reste',
+      );
+    }
+  });
+
+  test('un trou où les deux se défendent accepte les deux', () {
+    const mode = ParticlesMode();
+    final items = mode.buildItems(
+      ModeContext(data: data, config: mode.defaultConfig),
+    );
+
+    expect(items.length, data.particles.length);
+    expect(items.every((i) => i.promptScript == 'sentence'), isTrue);
+    expect(items.every((i) => i.answeredInKana), isTrue);
+    expect(items.every((i) => i.note != null && i.note!.isNotEmpty), isTrue);
+
+    final ouvert = data.particles.firstWhere((s) => s.isOpen);
+    final item = ParticlesMode.itemFor(ouvert);
+    for (final particule in ['は', 'が']) {
+      expect(
+        item.evaluate(particule),
+        AnswerState.complete,
+        reason: '${ouvert.blanked} refuse $particule',
+      );
+    }
+    // L'explication dit laquelle la phrase a choisie, sans compter faux.
+    expect(item.note, contains(ouvert.answer));
+
+    final ferme = data.particles.firstWhere((s) => !s.isOpen);
+    final autre = ferme.answer == 'を' ? 'に' : 'を';
+    expect(ParticlesMode.itemFor(ferme).evaluate(autre), isNot(AnswerState.complete));
+  });
+
+  test('la sélection par particule ne garde que ce qu\'elle annonce', () {
+    const mode = ParticlesMode();
+    final waga = mode.buildItems(
+      ModeContext(data: data, config: const {'focus': 'waga'}),
+    );
+    final tout = mode.buildItems(
+      ModeContext(data: data, config: const {'focus': 'all'}),
+    );
+
+    expect(waga, isNotEmpty);
+    expect(waga.length, lessThan(tout.length));
+    for (final item in waga) {
+      expect(
+        item.expected.any((p) => p == 'は' || p == 'が'),
+        isTrue,
+        reason: item.prompt,
+      );
+    }
+  });
+
+  test('une particule ratée revient dans les mots qui résistent', () {
+    final slot = data.particles.first;
+
+    // Identifiant dérivé du contenu : il survit à une régénération du jeu de
+    // données, contrairement à un numéro de ligne.
+    expect(slot.id, startsWith('p'));
+    expect(data.particleById(slot.id)?.sentence, slot.sentence);
+    expect(data.particles.map((s) => s.id).toSet().length,
+        data.particles.length);
+
+    const mode = WeakWordsMode();
+    final items = mode.buildItems(ModeContext(
+      data: data,
+      config: mode.defaultConfig,
+      stats: {slot.id: const ItemStat(3, 2)},
+    ));
+
+    expect(items.map((i) => i.id), contains(slot.id));
+    expect(items.first.prompt, slot.blanked);
   });
 }

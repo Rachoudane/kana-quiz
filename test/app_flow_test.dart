@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kana_quiz/src/app/app.dart';
 import 'package:kana_quiz/src/core/data/dataset.dart';
+import 'package:kana_quiz/src/core/data/particle_rules.dart';
 import 'package:kana_quiz/src/core/models/models.dart';
 import 'package:kana_quiz/src/features/common/widgets.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
@@ -206,5 +207,37 @@ void main() {
     expect(find.text('Hepburn strict'), findsOneWidget);
     expect(find.textContaining("san'in"), findsOneWidget);
     expect(find.text('koohii'), findsOneWidget);
+  });
+
+  testWidgets('le mode des particules pose une phrase et donne la raison',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('Particules'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    expect(find.text('Écris la particule qui manque.'), findsOneWidget);
+
+    final phrase = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
+    expect(phrase.contains('＿'), isTrue, reason: phrase);
+    final slot =
+        dataset.particles.firstWhere((s) => s.blanked == phrase);
+
+    await tester.enterText(find.byType(TextField), slot.answer);
+    await advance(tester);
+
+    // La fiche montre la phrase complétée, la raison, et la traduction.
+    expect(find.text(slot.sentence), findsOneWidget);
+    expect(find.text(particleNote(slot)), findsOneWidget);
+    expect(find.text(slot.translation), findsOneWidget);
+    // Pas de correction : la réponse était juste.
+    expect(find.text('recopie la réponse'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
   });
 }

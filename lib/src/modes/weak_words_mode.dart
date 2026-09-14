@@ -4,6 +4,7 @@ import '../core/storage/progress_store.dart';
 import 'kana_reading_mode.dart';
 import 'kanji_reading_mode.dart';
 import 'meaning_mode.dart';
+import 'particles_mode.dart';
 import 'quiz_mode.dart';
 
 /// Mode de révision : les questions déjà ratées reviennent en premier.
@@ -31,8 +32,11 @@ class WeakWordsMode extends QuizMode {
   @override
   String get emoji => '難';
 
+  // Le mode rejoue des questions venues de partout : une lecture se tape en
+  // rōmaji, un sens et une particule se tapent en kana. Le champ le rappelle
+  // question par question, la consigne ne peut que rester générale.
   @override
-  String get instruction => 'Tape la lecture en rōmaji.';
+  String get instruction => 'Tape la réponse : rōmaji ou kana selon la question.';
 
   @override
   List<QuizItem> buildItems(ModeContext context) {
@@ -74,14 +78,17 @@ class WeakWordsMode extends QuizMode {
   /// Reconstruit une question à partir de son identifiant.
   ///
   /// Le vocabulaire garde l'identifiant du mot, les kanji celui que leur donne
-  /// le mode kanji (`k_漢_any`), réglage de lecture compris, et les questions
-  /// de sens le leur (`m_v0123`).
+  /// le mode kanji (`k_漢_any`), réglage de lecture compris, les questions de
+  /// sens le leur (`m_v0123`), et les phrases à trou le leur (`p1a2b3c4d5e`).
   static QuizItem? _rebuild(Dataset data, String id) {
     final word = data.wordById(id);
     if (word != null) return KanaReadingMode.itemFor(word);
 
     final asked = MeaningToKanaMode.wordOf(data, id);
     if (asked != null) return MeaningToKanaMode.itemFor(data, asked);
+
+    final slot = data.particleById(id);
+    if (slot != null) return ParticlesMode.itemFor(slot);
 
     final parts = id.split('_');
     if (parts.length != 3 || parts.first != 'k') return null;

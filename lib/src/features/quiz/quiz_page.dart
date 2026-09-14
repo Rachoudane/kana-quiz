@@ -258,15 +258,27 @@ class _QuizPageState extends State<QuizPage> {
             ),
           ),
           const SizedBox(height: 20),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
+          // Un mot tient sur une ligne et se réduit pour y tenir. Une phrase
+          // doit au contraire pouvoir passer à la ligne : la rétrécir pour la
+          // garder sur une ligne la rendrait illisible.
+          if (item.promptScript == 'sentence')
+            Text(
               item.prompt,
               key: const Key('prompt'),
               textAlign: TextAlign.center,
-              style: promptStyle(context, promptSize(item)),
+              style: promptStyle(context, promptSize(item))
+                  .copyWith(height: 1.5),
+            )
+          else
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                item.prompt,
+                key: const Key('prompt'),
+                textAlign: TextAlign.center,
+                style: promptStyle(context, promptSize(item)),
+              ),
             ),
-          ),
           const SizedBox(height: 28),
           TextField(
             controller: _field,

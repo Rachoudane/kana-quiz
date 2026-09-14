@@ -77,6 +77,9 @@ class StatTile extends StatelessWidget {
 /// taille d'un titre, pas à celle d'un kanji isolé.
 double promptSize(QuizItem item, {bool dense = false}) {
   if (item.promptScript == 'latin') return dense ? 17 : 34;
+  // Une phrase entière se lit, elle ne se contemple pas : à 56 elle tiendrait
+  // sur trois lignes et le trou se perdrait dedans.
+  if (item.promptScript == 'sentence') return dense ? 15 : 26;
   if (dense) return 22;
   return item.prompt.characters.length > 6 ? 56 : 76;
 }
@@ -179,13 +182,31 @@ class ItemRevealCard extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  if (item.detail != null) ...[
+                  if (item.detail != null && item.detail!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       item.detail!,
                       style: japaneseStyle(
                         theme.textTheme.bodySmall,
                       ).copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                  if (item.note != null && item.note!.isNotEmpty) ...[
+                    SizedBox(height: dense ? 6 : 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: dense ? 10 : 12,
+                        vertical: dense ? 8 : 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        item.note!,
+                        style: japaneseStyle(theme.textTheme.bodyMedium)
+                            .copyWith(height: 1.45),
+                      ),
                     ),
                   ],
                   if (item.alternates.isNotEmpty && !item.answeredInKana) ...[

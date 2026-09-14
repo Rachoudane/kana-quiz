@@ -58,6 +58,11 @@ statistiques n'ont pas à changer pour en ajouter un.
 
 - `Kana → rōmaji` — un mot en kana, on tape sa lecture.
 - `Kanji → lecture` — un kanji, on tape une de ses lectures.
+- `Français → kana` — un sens, on écrit le mot en kana, à l'IME.
+- `Particules` — une phrase à trou, on écrit la particule et la fiche donne
+  la raison du choix.
+- `Apprendre le vocabulaire` — le mot est montré, puis redemandé plus loin.
+- `Mots qui résistent` — rejoue ce qui a déjà été raté.
 
 ## Développement
 
@@ -71,10 +76,17 @@ Régénérer les jeux de données et la police :
 
 ```bash
 pip install fugashi unidic-lite fonttools
-python tool/build_data.py    # assets/data/vocab.json, assets/data/kanji.json
-python tool/build_fonts.py   # assets/fonts/NotoSansJP-Regular.otf
-python tool/build_icon.py    # web/favicon.png, web/icons/
+python tool/build_data.py       # assets/data/vocab.json, assets/data/kanji.json
+python tool/build_particles.py  # assets/data/particles.json
+python tool/build_fonts.py      # assets/fonts/NotoSansJP-Regular.otf
+python tool/build_icon.py       # web/favicon.png, web/icons/
 ```
+
+`build_particles.py` se lance après `build_data.py` : il repart des phrases
+d'exemple déjà produites. Il analyse la version à kanji de chaque phrase —
+sans kanji, UniDic découpe こうえんで en こう・え・んで — puis ne garde le trou
+que si le motif grammatical est reconnu. Les motifs et leurs explications
+sont dans `lib/src/core/data/particle_rules.dart`.
 
 Les scripts téléchargent leurs sources et les mettent en cache dans
 `tool/.cache/`. `build_data.py` reconstruit la lecture kana de chaque phrase

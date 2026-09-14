@@ -110,6 +110,53 @@ class KanjiEntry {
   bool get isN5 => jlpt == 5;
 }
 
+/// Une phrase à trou : une particule retirée, et la raison de son choix.
+///
+/// Les phrases sont entièrement en kana. La position du trou est un index de
+/// caractère dans [sentence], calculé à la construction du jeu de données par
+/// `tool/build_particles.py` sur la version à kanji de la phrase.
+class ParticleSlot {
+  const ParticleSlot({
+    required this.id,
+    required this.sentence,
+    required this.translation,
+    required this.at,
+    required this.answer,
+    required this.rule,
+    this.accepted = const [],
+    this.topic = '',
+  });
+
+  final String id;
+
+  /// La phrase complète, particule comprise.
+  final String sentence;
+  final String translation;
+
+  /// Position du premier caractère de la particule dans [sentence].
+  final int at;
+  final String answer;
+
+  /// Identifiant du motif grammatical, voir `particle_rules.dart`.
+  final String rule;
+
+  /// Particules acceptées quand plusieurs se défendent. Vide = seule [answer].
+  final List<String> accepted;
+
+  /// Le mot qui précède le trou, pour écrire l'explication au cas par cas.
+  final String topic;
+
+  /// La phrase telle qu'elle est posée, avec son trou.
+  String get blanked =>
+      '${sentence.substring(0, at)}＿${sentence.substring(at + answer.length)}';
+
+  /// Toutes les réponses justes.
+  List<String> get answers => accepted.isEmpty ? [answer] : accepted;
+
+  /// Vrai si plusieurs particules passent : la fiche explique alors l'écart.
+  bool get isOpen => accepted.length > 1;
+}
+
 /// Une question, indépendante du mode qui l'a produite.
 class QuizItem {
   QuizItem({
@@ -122,6 +169,7 @@ class QuizItem {
     this.answerScript = 'romaji',
     this.secondary,
     this.detail,
+    this.note,
     this.examples = const [],
     this.related = const [],
   });
@@ -156,6 +204,12 @@ class QuizItem {
 
   /// Ligne d'information supplémentaire (lectures on/kun d'un kanji…).
   final String? detail;
+
+  /// Ce qu'il y a à comprendre, en français, montré après la réponse.
+  ///
+  /// Le mode des particules s'en sert pour la raison du choix : trouver la
+  /// bonne particule sans savoir pourquoi n'apprend rien.
+  final String? note;
 
   final List<Example> examples;
 

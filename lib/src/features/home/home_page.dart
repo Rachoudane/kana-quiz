@@ -47,7 +47,14 @@ class _HomePageState extends State<HomePage> {
                     _header(context),
                     const SizedBox(height: 32),
                     const SectionTitle('Mode'),
-                    for (final mode in quizModes) _modeCard(mode),
+                    _modeGrid(context),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_mode.subtitle} ${_mode.instruction}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     for (final option in _mode.options) ...[
                       SectionTitle(option.label),
@@ -142,13 +149,40 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _modeCard(QuizMode mode) {
+  /// Les modes en grille plutôt qu'empilés.
+  ///
+  /// À six modes, une carte pleine largeur par mode repoussait le bouton
+  /// « Commencer » hors de l'écran. Ne reste sur la tuile que ce qui sert à
+  /// choisir ; la phrase du mode retenu s'affiche sous la grille.
+  Widget _modeGrid(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 3 : 2;
+        const gap = 10.0;
+        final width =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final mode in quizModes)
+              SizedBox(width: width, child: _modeTile(mode)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _modeTile(QuizMode mode) {
     final theme = Theme.of(context);
     final selected = mode.id == _mode.id;
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.zero,
+      color: selected
+          ? theme.colorScheme.primary.withValues(alpha: 0.08)
+          : null,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
           color: selected
               ? theme.colorScheme.primary
@@ -157,45 +191,31 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => setState(() => _mode = mode),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 44,
+              Text(
+                mode.emoji,
+                style: promptStyle(context, 24).copyWith(
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
                 child: Text(
-                  mode.emoji,
-                  style: promptStyle(context, 30).copyWith(
-                    color: selected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
+                  mode.title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? theme.colorScheme.primary : null,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      mode.title,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      mode.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (selected)
-                Icon(Icons.check_circle, color: theme.colorScheme.primary),
             ],
           ),
         ),
