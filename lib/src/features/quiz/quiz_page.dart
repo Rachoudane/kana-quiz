@@ -175,7 +175,7 @@ class _QuizPageState extends State<QuizPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: Row(
             children: [
               IconButton(
@@ -206,6 +206,7 @@ class _QuizPageState extends State<QuizPage> {
             ],
           ),
         ),
+        _setupLine(context),
         // Rien à jauger quand la partie n'a pas de fin annoncée.
         if (_quiz.untimed)
           Divider(
@@ -220,6 +221,48 @@ class _QuizPageState extends State<QuizPage> {
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
           ),
       ],
+    );
+  }
+
+  /// Ce qui est joué, en une ligne : le mode, ses réglages, la durée.
+  ///
+  /// Une partie se lance et dure dix minutes : passé la première question,
+  /// plus rien à l'écran ne dit avec quel niveau ni quelle syllabaire on
+  /// joue. La ligne reste discrète, sous le chrono, pour ne pas prendre
+  /// l'attention due à la question.
+  Widget _setupLine(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = widget.mode.describe(widget.config);
+    final parts = [
+      widget.mode.title,
+      // Un mode sans option ne laisse pas de séparateur vide.
+      if (settings.isNotEmpty) settings,
+      formatDuration(widget.durationSeconds),
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          Text(
+            widget.mode.emoji,
+            style: japaneseStyle(theme.textTheme.bodySmall),
+          ),
+          const SizedBox(width: 6),
+          // Sur un écran étroit, la ligne se coupe plutôt que de déborder.
+          Flexible(
+            child: Text(
+              parts,
+              key: const Key('setup'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

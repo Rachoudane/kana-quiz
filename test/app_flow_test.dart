@@ -75,6 +75,24 @@ void main() {
     expect(find.text('Kana Quiz'), findsOneWidget);
   });
 
+  testWidgets('la partie rappelle le mode et les réglages choisis',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.textContaining('Commencer'));
+    await advance(tester);
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('setup'))).data,
+      'Kana → rōmaji · N5 · Hiragana + katakana · 10 min',
+    );
+
+    await tester.tap(find.byIcon(Icons.close).first);
+    await advance(tester);
+    await tester.tap(find.text('Arrêter'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Échap passe le mot sans quitter la saisie', (tester) async {
     await pumpApp(tester);
     await tester.tap(find.textContaining('Commencer'));
@@ -219,6 +237,10 @@ void main() {
     await advance(tester);
 
     expect(find.text('Écris la particule qui manque.'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('setup'))).data,
+      'Particules · Toutes · Sans limite',
+    );
 
     final phrase = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
     expect(phrase.contains('＿'), isTrue, reason: phrase);
