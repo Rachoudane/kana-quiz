@@ -344,6 +344,10 @@ def pick_entry(index, word, kana, preferred=None, meaning=None):
     Mrs., Miss » à どの « lequel » et « I, me » à あ « ah », les entrées 殿 et
     吾 étant traduites là où 何の et l'interjection ne le sont pas.
 
+    Le sens premier de la liste pèse avant le reste de la ligne : トラック y
+    vaut « truck; (running) track », et compter les mots de la ligne entière
+    donnait la piste, deux mots communs contre un.
+
     Restent la lecture courante — この est marginal pour 九 et courant pour
     此の — puis le mot courant.
     """
@@ -357,9 +361,14 @@ def pick_entry(index, word, kana, preferred=None, meaning=None):
     if not ids:
         return None, False
     known = preferred or {}
+    # La liste source sépare ses sens par un point-virgule, ses synonymes par
+    # une virgule : « truck; (running) track » dit d'abord le camion. Compter
+    # les mots de la ligne entière donnait la piste, deux mots contre un.
+    primary = (meaning or "").split(";")[0]
     ranked = sorted(
         ids,
         key=lambda i: (
+            -sense_overlap(entries[i], primary),
             -sense_overlap(entries[i], meaning),
             i not in known,
             not reads_commonly(entries[i], kana),
@@ -818,7 +827,8 @@ def literal_examples(word, sentences, kana_line, limit=2):
 
 
 def pick_examples(keys, kana, own, regular, positions, sentences, index,
-                  kana_line, entry_id=None, stem_noun=None, limit=2):
+                  kana_line, entry_id=None, stem_noun=None, named_only=False,
+                  limit=2):
     """Phrases où le mot est employé, à l'un des sens que la fiche affiche.
 
     Le corpus numérote le sens de chaque mot annoté, et ce numéro suit l'ordre
@@ -886,6 +896,12 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
             # JMdict range ailleurs que 溶ける, « fondre », dont 解ける est
             # pourtant une graphie.
             if named and entry_id and named != entry_id:
+                continue
+            # Deux mots courants se partagent la lecture et rien ne les
+            # sépare à l'écrit : seul l'identifiant prouve lequel parle.
+            # コート « court de tennis » se voyait illustré par un manteau,
+            # ダイヤ « horaires » par une bague en diamant.
+            if named_only and not named:
                 continue
             if said and HAS_KANJI.search(head) and kata_to_hira(said) != spoken:
                 continue
@@ -1135,6 +1151,30 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
                 translated = [sense_french.get(text, "") for text in others]
                 if any(translated):
                     entry["senses_fr"] = translated
+        # La fiche tient-elle seule la lecture ? C'est vrai quand elle est
+        # l'entrée où cette lecture est courante, et la seule. Sinon un mot
+        # trouvé au texte désigne plus probablement l'autre entrée, et une
+        # phrase que le corpus n'attribue pas ne prouve rien.
+        solo = entry_id is not None and reads_commonly(
+            english[0][entry_id], kana
+        ) and not any(
+            other != entry_id and reads_commonly(english[0][other], kana)
+            for other in english[2].get(kana, ())
+        )
+
+        # Deux mots courants qui partagent la lecture sans qu'aucun ne s'écrive
+        # en kanji : rien ne les sépare dans la phrase, et seul l'identifiant
+        # du corpus dit lequel parle. コート « court de tennis » se voyait
+        # illustré par un manteau, ダイヤ « horaires » par une bague.
+        # する, はい ou ここ ne sont pas concernés : leurs homonymes s'écrivent
+        # 刷る, 灰, 此処, et la graphie annotée suffit à les écarter.
+        kana_rivals = not writings_of(english, entry_id) and any(
+            other != entry_id
+            and reads_commonly(english[0][other], kana)
+            and not writings_of(english, other)
+            for other in english[2].get(kana, ())
+        )
+
         # Les graphies rares ne servent pas à chercher des exemples : 為る
         # est une écriture de する comme de なる, et les phrases de l'un
         # illustraient l'autre.
@@ -1151,22 +1191,18 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         examples = pick_examples(
             keys, kana, own, regular, shown, sentences, index, kana_line,
             entry_id=entry_id,
+            named_only=kana_rivals,
             stem_noun=(
                 display[:-2] if suru and display.endswith("する") else None
             ),
         )
-        # Repêchage littéral : réservé aux mots sans kanji, et dont la lecture
-        # ne renvoie qu'à un seul mot courant. La recherche ne sait rien du
-        # sens, et あの « euh » se retrouvait illustré par あの城は美しい, qui
-        # est l'autre あの, « ce ». ボタン garde les siens : la pivoine 牡丹 se
-        # lit aussi ボタン, mais plus personne ne l'écrit ainsi.
-        rivals = sum(
-            1 for other in english[2].get(kana, ())
-            if reads_commonly(english[0][other], kana)
-        )
+        # Repêchage littéral : réservé aux mots sans kanji. La recherche ne
+        # sait rien du sens, et あの « euh » se retrouvait illustré par
+        # あの城は美しい, qui est l'autre あの, « ce ». ボタン garde les siens :
+        # la pivoine 牡丹 se lit aussi ボタン, mais plus personne ne l'écrit.
         if (
             not examples
-            and rivals <= 1
+            and solo
             and not any(HAS_KANJI.search(text) for text in [display] + forms)
         ):
             examples = literal_examples(display, sentences, kana_line)
