@@ -66,7 +66,7 @@ class Dataset {
         ParticleSlot(
           id: items[i]['id'] as String,
           sentence: sentences[items[i]['s'] as int]['k'] as String,
-          translation: sentences[items[i]['s'] as int]['en'] as String,
+          translation: _translation(sentences[items[i]['s'] as int]),
           at: items[i]['at'] as int,
           answer: items[i]['a'] as String,
           rule: items[i]['r'] as String,
@@ -74,6 +74,13 @@ class Dataset {
           topic: items[i]['t'] as String? ?? '',
         ),
     ];
+  }
+
+  /// Le français si Tatoeba l'a traduite, l'anglais sinon — comme les
+  /// exemples d'une fiche.
+  static String _translation(Map<String, dynamic> sentence) {
+    final fr = sentence['fr'] as String?;
+    return (fr != null && fr.isNotEmpty) ? fr : sentence['en'] as String;
   }
 
   VocabWord? wordById(String id) => _wordsById[id];

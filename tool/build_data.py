@@ -270,24 +270,30 @@ def reading_map(index):
     une écriture ne déteint pas sur les autres.
     """
     out = {}
-    for _entry_id, record in index[0].items():
+    for entry_id, record in index[0].items():
         for writing, _usual, _regular in record[2]:
-            ranked = out.setdefault(writing, [])
+            ranked = out.setdefault(writing, {}).setdefault(entry_id, [])
             for rank, (text, common, applies) in enumerate(record[3]):
                 if applies and writing not in applies:
                     continue
                 ranked.append((0 if common else 1, rank, text))
     resolved = {}
-    for writing, ranked in out.items():
-        texts = [text for _c, _r, text in sorted(set(ranked))]
-        common = [
-            text for level, _r, text in sorted(set(ranked)) if level == 0
-        ]
-        # Une graphie qui garde plusieurs lectures plausibles n'est pas
-        # comblée : 時 vaut とき et じ, et 夜の八時 se lisait よるのはちとき.
-        choice = common or texts
-        if len(set(choice)) == 1:
-            resolved[writing] = choice[0]
+    for writing, by_entry in out.items():
+        best = set()
+        for ranked in by_entry.values():
+            order = sorted(set(ranked))
+            common = [t for level, _r, t in order if level == 0]
+            texts = [t for _l, _r, t in order]
+            choice = common or texts
+            if choice:
+                best.add(choice[0])
+        # Une graphie que deux entrées se partagent reste ambiguë : 時 vaut
+        # とき pour l'une et じ pour l'autre, et 夜の八時 se lisait よるのはちとき.
+        # À l'intérieur d'une entrée en revanche, c'est le même mot, et la
+        # lecture la plus courante fait l'affaire : 行く vaut いく ou ゆく, et
+        # s'en priver laissait fugashi lire 行った comme 行う, おこなった.
+        if len(best) == 1:
+            resolved[writing] = best.pop()
     return resolved
 
 

@@ -288,7 +288,12 @@ def build():
 
         if not found:
             continue
-        sentences.append({"k": example["kana"], "en": example["en"]})
+        record = {"k": example["kana"], "en": example["en"]}
+        # Le français quand Tatoeba l'a : l'appli est en français, et le mode
+        # posait ses phrases en anglais faute de reprendre le champ.
+        if example.get("fr"):
+            record["fr"] = example["fr"]
+        sentences.append(record)
         for slot in found:
             slot["s"] = len(sentences) - 1
             slots.append(slot)
