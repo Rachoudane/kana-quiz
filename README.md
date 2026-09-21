@@ -12,9 +12,12 @@ embarquées, la progression reste dans le navigateur.
 
 - **2 989 mots** : 702 au N5, 623 au N4, 1 664 au N3, dont 231 en katakana.
   Le niveau se choisit avant la partie.
-- **Sens en français et en anglais**, tirés de JMdict, pas d'une traduction
-  automatique. Un mot qui veut dire plusieurs choses les montre toutes :
-  1 652 mots portent au moins deux sens.
+- **Sens en français et en anglais**, tirés de JMdict. Un mot qui veut dire
+  plusieurs choses les montre toutes : 1 652 mots portent au moins deux sens,
+  chacun dans les deux langues. Le sens principal vient du JMdict français ;
+  les 2 642 sens suivants, que JMdict ne traduit pas, sont traduits de son
+  anglais et figés dans `tool/sense_fr_overrides.json`, relisible et
+  corrigeable à la main.
 - **2 895 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
   s'écrit, puis entièrement en kana pour pouvoir la lire. 90 % des phrases
   sont traduites en français, le reste en anglais.
@@ -107,7 +110,9 @@ Les scripts téléchargent leurs sources et les mettent en cache dans
 d'exemple à partir des lectures annotées de Tatoeba, complétées par
 UniDic. `tool/meaning_overrides.json` corrige à la main les rares entrées que
 JMdict ne couvre pas, `tool/kanji_fr_overrides.json` les kanji que KANJIDIC2
-ne traduit pas.
+ne traduit pas, et `tool/sense_fr_overrides.json` porte le français des sens
+supplémentaires. Ces deux derniers fichiers ne viennent pas d'un dictionnaire :
+ils s'éditent à la main et la construction les relit à chaque fois.
 
 ## Déploiement
 

@@ -42,6 +42,7 @@ class VocabWord {
     required this.script,
     required this.examples,
     this.senses = const [],
+    this.sensesFr = const [],
     this.freq,
   });
 
@@ -60,6 +61,7 @@ class VocabWord {
             .toList() ??
         const [],
     senses: (json['senses'] as List?)?.cast<String>() ?? const [],
+    sensesFr: (json['senses_fr'] as List?)?.cast<String>() ?? const [],
     freq: json['freq'] as int?,
   );
 
@@ -90,6 +92,14 @@ class VocabWord {
   /// met le sens courant en tête. Le français n'y figure pas : sa ligne ne
   /// découpe pas les sens, elle les aplatit tous.
   final List<String> senses;
+
+  /// Le français de [senses], même longueur et même ordre, une case vide
+  /// quand le sens n'est pas traduit.
+  ///
+  /// Ces traductions ne viennent pas de JMdict, qui n'a pas ces sens en
+  /// français : elles sont traduites de son anglais et figées dans
+  /// `tool/sense_fr_overrides.json`. [fr] reste, lui, la ligne de JMdict.
+  final List<String> sensesFr;
 
   /// Bande de fréquence JMdict : 1 pour les 500 mots les plus courants de la
   /// presse, 48 pour les 500 derniers des 24 000 relevés. `null` au-delà.
@@ -212,6 +222,7 @@ class QuizItem {
     this.examples = const [],
     this.related = const [],
     this.senses = const [],
+    this.sensesFr = const [],
   });
 
   final String id;
@@ -256,8 +267,18 @@ class QuizItem {
   /// Les autres sens, en anglais : voir [VocabWord.senses].
   final List<String> senses;
 
-  /// Tous les sens anglais, le principal en tête.
-  List<String> get allSenses => [if (en.isNotEmpty) en, ...senses];
+  /// Le français des autres sens : voir [VocabWord.sensesFr].
+  final List<String> sensesFr;
+
+  /// Tous les sens, le principal en tête, chacun avec son français.
+  ///
+  /// Le premier prend [fr], la ligne de JMdict. Les suivants prennent leur
+  /// traduction, vide si elle manque.
+  List<({String en, String fr})> get allSenses => [
+    if (en.isNotEmpty) (en: en, fr: fr),
+    for (var i = 0; i < senses.length; i++)
+      (en: senses[i], fr: i < sensesFr.length ? sensesFr[i] : ''),
+  ];
 
   /// Mots du vocabulaire rattachés (utilisé par le mode kanji).
   final List<VocabWord> related;

@@ -170,6 +170,9 @@ void main() {
                 en: 'blue, azure',
                 fr: 'bleu, vert',
                 senses: senses,
+                sensesFr: senses.isEmpty
+                    ? const []
+                    : const ['vert', 'feu vert'],
               ),
               correct: true,
             ),
@@ -186,8 +189,10 @@ void main() {
     expect(find.text('1. blue, azure'), findsOneWidget);
     expect(find.text('2. green'), findsOneWidget);
     expect(find.text('3. green light (traffic)'), findsOneWidget);
-    // Le français ne se numérote pas : sa ligne couvre tous les sens.
+    // Chaque sens porte son français, en retrait sous l'anglais.
     expect(find.text('bleu, vert'), findsOneWidget);
+    expect(find.text('vert'), findsOneWidget);
+    expect(find.text('feu vert'), findsOneWidget);
   });
 
   testWidgets('une phrase sans kanji ne se répète pas', (tester) async {

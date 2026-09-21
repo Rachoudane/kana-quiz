@@ -97,6 +97,7 @@ class MeaningToKanaMode extends QuizMode {
           : 'aussi : ${others.map((w) => w.kana).join('・')}',
       examples: first.examples,
       senses: first.senses,
+      sensesFr: first.sensesFr,
     );
   }
 }

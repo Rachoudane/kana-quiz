@@ -4,6 +4,7 @@ import 'package:kana_quiz/src/core/data/particle_rules.dart';
 import 'package:kana_quiz/src/core/models/models.dart';
 import 'package:kana_quiz/src/core/storage/progress_store.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
+import 'package:kana_quiz/src/modes/kana_reading_mode.dart';
 import 'package:kana_quiz/src/modes/modes.dart';
 
 void main() {
@@ -153,6 +154,34 @@ void main() {
           isTrue,
           reason: '${entry.kanji} -> $reading',
         );
+      }
+    }
+  });
+
+  test('chaque sens supplémentaire a son français', () {
+    final multiple = data.words.where((w) => w.senses.isNotEmpty).toList();
+    for (final word in multiple) {
+      // Même longueur et même ordre : c'est ce qui apparie un sens anglais
+      // avec sa traduction. Un décalage ferait mentir la fiche.
+      expect(word.sensesFr.length, word.senses.length, reason: word.kana);
+      for (final sense in word.sensesFr) {
+        expect(sense.trim(), isNotEmpty, reason: word.kana);
+      }
+    }
+    // Le français d'un sens ne répète pas la ligne de JMdict du mot.
+    final echoes = multiple
+        .where((w) => w.sensesFr.any((s) => s == w.fr))
+        .length;
+    expect(echoes, lessThan(multiple.length ~/ 20));
+  });
+
+  test('tous les sens affichés portent les deux langues', () {
+    for (final word in data.words.where((w) => w.senses.isNotEmpty).take(200)) {
+      final item = KanaReadingMode.itemFor(word);
+      expect(item.allSenses.length, word.senses.length + 1, reason: word.kana);
+      for (final sense in item.allSenses) {
+        expect(sense.en.trim(), isNotEmpty, reason: word.kana);
+        expect(sense.fr.trim(), isNotEmpty, reason: word.kana);
       }
     }
   });

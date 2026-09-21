@@ -37,6 +37,7 @@ CACHE = os.path.join(ROOT, "tool", ".cache")
 OUT = os.path.join(ROOT, "assets", "data")
 OVERRIDES = os.path.join(ROOT, "tool", "meaning_overrides.json")
 KANJI_OVERRIDES = os.path.join(ROOT, "tool", "kanji_fr_overrides.json")
+SENSE_OVERRIDES = os.path.join(ROOT, "tool", "sense_fr_overrides.json")
 
 ANKI = "https://raw.githubusercontent.com/jamsinclair/open-anki-jlpt-decks/main/src/{}.csv"
 VOCAB_API = "https://jlpt-vocab-api.vercel.app/api/words?level=5&limit=100&offset={}"
@@ -603,8 +604,24 @@ def load_frequency():
     return out
 
 
+def load_sense_french():
+    """Français des sens supplémentaires, glose anglaise -> glose française.
+
+    JMdict ne les a pas : 2 700 de ses 2 954 entrées utiles ici n'ont qu'un
+    seul bloc de sens français, quand l'anglais en découpe plusieurs. Ces
+    traductions-là ne viennent donc pas du dictionnaire mais d'un modèle, et
+    le fichier est là pour être relu et corrigé à la main.
+
+    Le sens principal n'y touche pas : il garde le français de JMdict.
+    """
+    if not os.path.exists(SENSE_OVERRIDES):
+        return {}
+    data = json.load(io.open(SENSE_OVERRIDES, encoding="utf-8"))
+    return {k: v for k, v in data.items() if not k.startswith("_")}
+
+
 def build_vocab(sentences, index, kana_line, french, english, overrides,
-                frequency):
+                frequency, sense_french):
     merged = {}
     sources = load_api()
     for level in LEVELS:
@@ -726,6 +743,12 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
                     break
             if others:
                 entry["senses"] = others
+                # Le français de chaque sens en plus, quand il est traduit.
+                # La liste garde la même longueur et le même ordre : une case
+                # vide veut dire « pas de français pour ce sens-là ».
+                translated = [sense_french.get(text, "") for text in others]
+                if any(translated):
+                    entry["senses_fr"] = translated
         # Les graphies rares ne servent pas à chercher des exemples : 為る
         # est une écriture de する comme de なる, et les phrases de l'un
         # illustraient l'autre.
@@ -869,7 +892,8 @@ def main():
     kana_line = KanaLine()
 
     words, missing_fr = build_vocab(
-        sentences, index, kana_line, french, english, overrides, frequency
+        sentences, index, kana_line, french, english, overrides, frequency,
+        load_sense_french()
     )
     kanji = build_kanji(words)
 
@@ -879,7 +903,9 @@ def main():
             "count": len(words),
             "attribution": "Vocabulaire : open-anki-jlpt-decks, jlpt-vocab-api. "
                            "Sens et fréquences : JMdict / EDRDG (CC BY-SA 4.0). "
-                           "Exemples et traductions : Tatoeba (CC BY 2.0 FR).",
+                           "Exemples et traductions : Tatoeba (CC BY 2.0 FR). "
+                           "Français des sens supplémentaires : traduit de "
+                           "l'anglais de JMdict par un modèle.",
             "words": words,
         }, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -902,7 +928,13 @@ def main():
     )
     print("total : %d mots, %d avec exemple, %d traduit en français"
           % (len(words), with_ex, with_fr))
-    print("sens multiples : %d mots" % sum(1 for w in words if w.get("senses")))
+    multiple = [w for w in words if w.get("senses")]
+    senses_total = sum(len(w["senses"]) for w in multiple)
+    senses_fr = sum(
+        1 for w in multiple for t in w.get("senses_fr", []) if t
+    )
+    print("sens multiples : %d mots, %d sens en plus, %d traduits en français"
+          % (len(multiple), senses_total, senses_fr))
     print("fréquence connue : %d mots" % sum(1 for w in words if "freq" in w))
     print("kanji : %d (%d au N5), %d avec sens français"
           % (len(kanji), sum(1 for k in kanji if k["jlpt"] == 5),

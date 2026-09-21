@@ -170,13 +170,6 @@ class ItemRevealCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   ..._senses(theme),
-                  if (item.fr.isNotEmpty)
-                    Text(
-                      item.fr,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
                   if (item.detail != null && item.detail!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -242,22 +235,32 @@ class ItemRevealCard extends StatelessWidget {
     );
   }
 
-  /// Les sens du mot, en anglais. Numérotés seulement quand il y en a
-  /// plusieurs : un « 1. » solitaire n'apprend rien.
+  /// Les sens du mot : l'anglais, puis le français dessous, en retrait.
   ///
-  /// Le français reste dessous, sans numéro. Sa ligne ne découpe pas les sens,
-  /// elle les aplatit tous : la mettre en face d'un numéro mentirait.
+  /// Numérotés seulement quand il y en a plusieurs : un « 1. » solitaire
+  /// n'apprend rien. Le français du premier sens est celui de JMdict, celui
+  /// des suivants vient de `tool/sense_fr_overrides.json`.
   List<Widget> _senses(ThemeData theme) {
-    final style = theme.textTheme.bodyMedium?.copyWith(
+    final english = theme.textTheme.bodyMedium?.copyWith(
       fontWeight: FontWeight.w600,
     );
+    final french = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     final senses = item.allSenses;
-    if (senses.length < 2) {
-      return [if (senses.isNotEmpty) Text(senses.first, style: style)];
-    }
+    final numbered = senses.length > 1;
     return [
-      for (var i = 0; i < senses.length; i++)
-        Text('${i + 1}. ${senses[i]}', style: style),
+      for (var i = 0; i < senses.length; i++) ...[
+        Text(
+          numbered ? '${i + 1}. ${senses[i].en}' : senses[i].en,
+          style: english,
+        ),
+        if (senses[i].fr.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(left: numbered ? 16 : 0),
+            child: Text(senses[i].fr, style: french),
+          ),
+      ],
     ];
   }
 }
