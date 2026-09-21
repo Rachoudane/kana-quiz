@@ -361,15 +361,19 @@ def pick_entry(index, word, kana, preferred=None, meaning=None):
     if not ids:
         return None, False
     known = preferred or {}
-    # La liste source sépare ses sens par un point-virgule, ses synonymes par
-    # une virgule : « truck; (running) track » dit d'abord le camion. Compter
-    # les mots de la ligne entière donnait la piste, deux mots contre un.
-    primary = (meaning or "").split(";")[0]
+    # Chaque liste source sépare ses sens par un point-virgule, ses synonymes
+    # par une virgule : « truck; (running) track » dit d'abord le camion, et
+    # compter les mots de la ligne entière donnait la piste, deux mots contre
+    # un. Une entrée qui répond au sens premier d'une liste passe devant, et
+    # d'autant plus qu'elles sont plusieurs à le dire.
+    lines = [meaning] if isinstance(meaning, str) else list(meaning or ())
+    heads = [line.split(";")[0] for line in lines if line]
+    joined = "; ".join(lines)
     ranked = sorted(
         ids,
         key=lambda i: (
-            -sense_overlap(entries[i], primary),
-            -sense_overlap(entries[i], meaning),
+            -sum(1 for head in heads if sense_overlap(entries[i], head)),
+            -sense_overlap(entries[i], joined),
             i not in known,
             not reads_commonly(entries[i], kana),
             not entries[i][0],
@@ -1026,13 +1030,24 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
     for level in LEVELS:
         sources += load_anki(level)
 
+    # Un mot peut venir de deux listes à la fois. Ne garder qu'une ligne
+    # perdait le sens de l'autre : コート valait « coat; court (e.g., tennis) »
+    # chez Anki, « coat, tennis court » à l'API, et c'est la seconde qui
+    # restait — sans son point-virgule, plus rien ne disait que le manteau
+    # vient d'abord. Les lignes s'empilent donc, la plus accessible en tête.
     for entry in sources:
         if not entry["kana"]:
             continue
         key = (entry["kana"], entry["word"])
         previous = merged.get(key)
-        if previous is None or entry["level"] > previous["level"]:
-            merged[key] = entry
+        if previous is None:
+            merged[key] = dict(entry, meanings=[entry["meaning"]])
+        elif entry["level"] > previous["level"]:
+            merged[key] = dict(
+                entry, meanings=[entry["meaning"]] + previous["meanings"]
+            )
+        else:
+            previous["meanings"].append(entry["meaning"])
 
     by_kana = {}
     for (kana, _word), entry in merged.items():
@@ -1053,10 +1068,11 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         for e in group:
             if e["word"] not in forms:
                 forms.append(e["word"])
-            for m in e["meaning"].split(","):
-                m = m.strip()
-                if m and m not in fallback:
-                    fallback.append(m)
+            for line in e["meanings"]:
+                for m in re.split("[;,]", line):
+                    m = m.strip()
+                    if m and m not in fallback:
+                        fallback.append(m)
 
         # L'écriture est celle de la liste source, au niveau le plus
         # accessible. Une ligne qui s'écrit déjà en kana comptait pour rien :
@@ -1064,7 +1080,7 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         # qui donnait le sens et les exemples de する.
         word = forms[0]
         entry_id, suru = pick_entry(
-            english, word, kana, french[0], meaning=group[0]["meaning"]
+            english, word, kana, french[0], meaning=group[0]["meanings"]
         )
         en_auto, position = (None, None)
         if entry_id is not None:

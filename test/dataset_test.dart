@@ -176,12 +176,12 @@ void main() {
     for (final example in word('とける').examples) {
       expect(example.jp, isNot(contains('靴ひも')));
     }
-    // Deux mots courants sans kanji pour les séparer : コート « court de
-    // tennis » était illustré par un manteau qu'on essaie, ダイヤ « horaires »
-    // par une bague en diamant.
-    for (final example in word('コート').examples) {
-      expect(example.jp, isNot(contains('試着')));
-    }
+    // Deux listes source donnent コート, et n'en garder qu'une perdait le
+    // point-virgule de « coat; court (e.g., tennis) », seul à dire que le
+    // manteau vient d'abord.
+    expect(word('コート').en, contains('coat'));
+    // Deux mots courants sans kanji pour les séparer : ダイヤ « horaires » se
+    // voyait illustré par une bague en diamant.
     for (final example in word('ダイヤ').examples) {
       expect(example.jp, isNot(contains('指輪')));
     }
