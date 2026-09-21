@@ -402,6 +402,15 @@ def senses_for(index, entry_id, limit=3):
 
 TOKEN_RE = re.compile(r"^([^()\[\]{}~|]+)(?:\(([^)]*)\))?(?:\[(\d+)\])?(?:\{([^}]*)\})?")
 
+# Tatoeba est un corpus généraliste, pas un manuel : une poignée de phrases
+# n'ont rien à faire dans une appli qu'on ouvre pour réviser ses kana. Liste
+# tenue à la main, à compléter au fil des rencontres.
+NOT_SPOKEN = re.compile(r"[0-9０-９A-Za-zＡ-Ｚａ-ｚ]")
+
+SKIP_SENTENCES = {
+    "先生、アソコがかゆいんです。",
+}
+
 
 def surface_stem(head, reading):
     """Lecture du lemme privée de l'okurigana : 会う(あう) donne あ."""
@@ -512,7 +521,7 @@ def load_examples(spoken):
     # dans l'ordre, et deux constructions doivent donner le même jeu.
     for sentence_id in sorted(indices, key=int):
         jp = japanese.get(sentence_id)
-        if not jp or not 6 <= len(jp) <= 46:
+        if not jp or not 6 <= len(jp) <= 46 or jp in SKIP_SENTENCES:
             continue
         pair = translations.get(sentence_id)
         if not pair:
@@ -588,6 +597,17 @@ class KanaLine:
         おははさん. Même chose pour 火曜日, coupé en 火曜 + 日, qui perdait son
         rendaku et se lisait かようひ.
         """
+        parts = self.parts(sentence, annotated)
+        if parts is None:
+            return None
+        return "".join(reading for _text, reading in parts)
+
+    def parts(self, sentence, annotated):
+        """La phrase découpée en (écrit, lu), ou None si une lecture manque.
+
+        L'alignement sert à vérifier la lecture d'un mot précis : la fiche 九
+        « く » était illustrée par 九引く六, où 九 se lit きゅう.
+        """
         key = (sentence, tuple(sorted(annotated.items())))
         if key in self.cache:
             return self.cache[key]
@@ -608,14 +628,14 @@ class KanaLine:
             del gap[:]
             for word in self.tagger(text):
                 if not HAS_KANJI.search(word.surface):
-                    out.append(word.surface)
+                    out.append((word.surface, word.surface))
                     continue
                 reading = getattr(word.feature, "kana", None) or getattr(
                     word.feature, "pron", None
                 )
                 if not reading:
                     return False
-                out.append(kata_to_hira(reading))
+                out.append((word.surface, kata_to_hira(reading)))
             return True
 
         i = 0
@@ -625,7 +645,7 @@ class KanaLine:
                 if not flush():
                     self.cache[key] = None
                     return None
-                out.append(reading)
+                out.append((span, reading))
                 i += len(span)
             else:
                 gap.append(sentence[i])
@@ -633,8 +653,8 @@ class KanaLine:
         if not flush():
             self.cache[key] = None
             return None
-        line = "".join(out)
-        result = None if HAS_KANJI.search(line) else line
+        line = "".join(reading for _text, reading in out)
+        result = None if HAS_KANJI.search(line) else out
         if result and not self.agrees(sentence, derived):
             result = None
         self.cache[key] = result
@@ -686,6 +706,21 @@ class KanaLine:
             said.append(kata_to_hira(reading or word.surface))
         said = "".join(said)
         return all(reading in said for reading in derived)
+
+
+def reads_as(parts, writings, kana):
+    """Faux si une graphie du mot, isolée dans la phrase, s'y lit autrement.
+
+    Le mot doit occuper un découpage à lui seul : dans 大発見家, le 家 de la
+    fiche « -ien » est pris dans un composé dont la lecture entière ne se
+    compare à rien. Une forme fléchie ne s'écrit pas comme le lemme et ne
+    tombe pas non plus sous ce contrôle — c'est la ligne entière qui en
+    répond.
+    """
+    for text, reading in parts:
+        if text in writings and kata_to_hira(reading) != kana:
+            return False
+    return True
 
 
 def pick_examples(keys, kana, own, regular, positions, sentences, index,
@@ -751,11 +786,15 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
             seen.add(idx)
             # À sens égal, une phrase traduite en français passe devant : la
             # moitié des phrases de Tatoeba n'a que l'anglais, et l'application
-            # est en français. La longueur départage ensuite, une phrase courte
-            # se lit entre deux mots.
+            # est en français. Vient ensuite la phrase qui s'écrit en entier :
+            # un chiffre ou des capitales latines traversent la ligne en kana
+            # sans rien apprendre, ５枚 restant ５まい faute de savoir compter
+            # les objets plats. La longueur départage en dernier, une phrase
+            # courte se lit entre deux mots.
             candidates.append((
                 0 if shown else 1,
                 0 if sentences[idx][2] else 1,
+                1 if NOT_SPOKEN.search(sentences[idx][0]) else 0,
                 len(sentences[idx][0]),
                 idx,
             ))
@@ -772,17 +811,22 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
         if HAS_KANJI.search(text):
             stem = min(stem, surface_stem(text, kata_to_hira(kana)), key=len)
 
-    for _shown, _translated, _length, idx in candidates[:40]:
+    for _shown, _translated, _written, _length, idx in candidates[:40]:
         jp, en, fr, annotated = sentences[idx]
-        line = kana_line.build(jp, annotated)
-        if not line:
+        parts = kana_line.parts(jp, annotated)
+        if not parts:
             continue
         # Dernière vérification, et la seule que l'utilisateur voit : la fiche
         # doit se lire dans sa propre ligne en kana. 辛い « épicé » était
-        # illustré par つらい « pénible », 九 « く » par きゅうページ, et あちら
-        # par あっち — à chaque fois la fiche annonçait une lecture que la
-        # phrase en dessous ne prononçait pas.
+        # illustré par つらい « pénible » et あちら par あっち — la fiche
+        # annonçait une lecture que la phrase en dessous ne prononçait pas.
+        line = "".join(reading for _text, reading in parts)
         if stem and stem not in kata_to_hira(line):
+            continue
+        # Là où le mot est écrit tel quel, sa lecture doit être celle de la
+        # fiche, et pas seulement figurer quelque part : 九 « く » passait
+        # grâce au く de 幾つ, dans une phrase qui le lit きゅう.
+        if not reads_as(parts, regular, kata_to_hira(kana)):
             continue
         example = {"jp": jp, "kana": line, "en": en}
         if fr:
