@@ -160,6 +160,18 @@ void main() {
     expect(word('なる').en, contains('to become'));
     expect(word('はい').en, contains('yes'));
 
+    // Une entrée traduite en français ne passe pas devant une entrée qui dit
+    // la bonne chose : この annonçait « neuf (9) », l'entrée 九 étant traduite
+    // là où 此の ne l'est pas, et どの annonçait « Mr., Mrs., Miss » pour 殿.
+    expect(word('この').en, contains('this'));
+    expect(word('どの').en, contains('which'));
+    expect(word('あ').en, contains('ah'));
+    expect(word('おき').en, contains('every'));
+    // Un verbe en する lit le sens que JMdict marque comme tel : le premier
+    // sens de チェック est le motif à carreaux.
+    expect(word('チェックする').en, contains('check, inspection'));
+    expect(word('しょうたいする').fr, contains('inviter'));
+
     // Une phrase d'exemple parle du mot, pas de son homophone. Ce qui le
     // garantit est le lemme annoté par le corpus, pas l'écriture de surface :
     // 何してるの est bien する, sous sa forme contractée. On vérifie donc que

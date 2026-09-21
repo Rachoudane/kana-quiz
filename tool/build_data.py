@@ -236,7 +236,14 @@ def load_jmdict(lang):
         ]
         # Les lectures servent à lire les mots que le corpus annote sans
         # donner leur lecture, voir `reading_map`.
-        entries[entry["id"]] = (common, senses, writings, spoken)
+        # Les sens qui acceptent する : c'est ce qui distingue le チェック
+        # « motif à carreaux » du チェック « vérification », seul le second
+        # se conjuguant.
+        verbal = tuple(
+            i for i, sense in enumerate(entry["sense"])
+            if "vs" in (sense.get("partOfSpeech") or [])
+        )
+        entries[entry["id"]] = (common, senses, writings, spoken, verbal)
         for kana in kanas:
             by_kana.setdefault(kana, []).append(entry["id"])
             for kanji in kanjis:
@@ -322,10 +329,17 @@ def pick_entry(index, word, kana, preferred=None, meaning=None):
     """Identifiant JMdict du mot, et vrai si on est passé par le radical する.
 
     Le choix se fait sur l'index anglais, le seul complet : le français n'a
-    qu'une entrée sur quatorze et ne peut pas trancher. Mais une entrée que le
-    français connaît passe devant, sinon いくら part sur イクラ, absent du
-    français, et le mot est perdu faute de traduction. À égalité, c'est
-    l'entrée qui dit la même chose que la liste source qui l'emporte.
+    qu'une entrée sur quatorze et ne peut pas trancher. C'est donc l'entrée
+    qui dit la même chose que la liste source qui l'emporte d'abord.
+
+    Une entrée que le français connaît ne passe qu'ensuite, à sens égal, sinon
+    いくら part sur イクラ, absent du français, et le mot est perdu faute de
+    traduction. L'ordre compte : devant le sens, ce départage donnait « Mr.,
+    Mrs., Miss » à どの « lequel » et « I, me » à あ « ah », les entrées 殿 et
+    吾 étant traduites là où 何の et l'interjection ne le sont pas.
+
+    Restent la lecture courante — この est marginal pour 九 et courant pour
+    此の — puis le mot courant.
     """
     entries, by_pair, by_kana = index
     ids = by_pair.get((word, kana)) or by_kana.get(kana)
@@ -340,20 +354,45 @@ def pick_entry(index, word, kana, preferred=None, meaning=None):
     ranked = sorted(
         ids,
         key=lambda i: (
-            i not in known,
             -sense_overlap(entries[i], meaning),
+            i not in known,
+            not reads_commonly(entries[i], kana),
             not entries[i][0],
         ),
     )
     return ranked[0], suru
 
 
-def glosses_for(index, entry_id, position=None, limit=3):
+def reads_commonly(record, kana):
+    """Vrai si la lecture demandée est une lecture courante de l'entrée.
+
+    Le drapeau « courante » de l'entrée ne dit rien de la lecture par laquelle
+    on y arrive : 九 est un mot courant par きゅう, mais この n'en est qu'une
+    lecture marginale, et la fiche この annonçait « neuf (9) » au lieu de
+    « ce, cette ». JMdict marque chaque lecture séparément, この étant courante
+    pour 此の et rare pour 九.
+    """
+    return any(
+        text == kana and common for text, common, _applies in record[3]
+    )
+
+
+def verbal_senses(index, entry_id):
+    """Positions des sens qui acceptent する. Vide si introuvable."""
+    record = index[0].get(entry_id)
+    return record[4] if record else ()
+
+
+def glosses_for(index, entry_id, position=None, limit=3, prefer=()):
     """Gloses d'une entrée, et la position du sens retenu.
 
     `position` demande un sens précis, celui déjà retenu dans l'autre langue.
     Un sens non traduit fait retomber sur le premier sens disponible : mieux
     vaut un décalage de sens qu'un mot sans traduction.
+
+    `prefer` passe devant le reste sans rien imposer : un verbe en する doit
+    lire le sens que JMdict marque comme tel, sinon チェックする, « vérifier »,
+    annonce « tissu à carreaux », qui est le premier sens de チェック.
     """
     entries = index[0]
     record = entries.get(entry_id)
@@ -361,7 +400,8 @@ def glosses_for(index, entry_id, position=None, limit=3):
         return None, None
     senses = record[1]
     order = [] if position is None else [position]
-    order += [i for i in range(len(senses)) if i != position]
+    order += [i for i in prefer if i != position]
+    order += [i for i in range(len(senses)) if i != position and i not in prefer]
     for i in order:
         if not 0 <= i < len(senses):
             continue
@@ -931,7 +971,10 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         )
         en_auto, position = (None, None)
         if entry_id is not None:
-            en_auto, position = glosses_for(english, entry_id)
+            en_auto, position = glosses_for(
+                english, entry_id,
+                prefer=verbal_senses(english, entry_id) if suru else (),
+            )
         en = override.get("en") or en_auto
         fr = override.get("fr")
         if not fr and entry_id is not None:
