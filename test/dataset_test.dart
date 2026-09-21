@@ -71,7 +71,10 @@ void main() {
   test('les exemples sont traduits en français dans leur grande majorité', () {
     final examples = [for (final w in data.words) ...w.examples];
     final french = examples.where((e) => e.fr.isNotEmpty).length;
-    expect(french, greaterThan(examples.length * 3 ~/ 4));
+    // 90 % à la construction. Seuls 20 % du corpus japonais de Tatoeba ont une
+    // traduction française : c'est le tri qui va les chercher, et s'il casse
+    // ce compte retombe à 20 %.
+    expect(french, greaterThan(examples.length * 17 ~/ 20));
   });
 
   test('l\'écriture d\'un verbe en する garde son する', () {
@@ -100,9 +103,15 @@ void main() {
     expect(word('なる').en, contains('to become'));
     expect(word('はい').en, contains('yes'));
 
-    // Une phrase d'exemple parle du mot, pas de son homophone.
+    // Une phrase d'exemple parle du mot, pas de son homophone. Ce qui le
+    // garantit est le lemme annoté par le corpus, pas l'écriture de surface :
+    // 何してるの est bien する, sous sa forme contractée. On vérifie donc que
+    // les homophones sont absents, pas que する apparaît tel quel.
     for (final example in word('する').examples) {
-      expect(example.jp, contains('する'));
+      expect(
+        example.jp,
+        isNot(anyOf(contains('刷'), contains('擦'), contains('摺'))),
+      );
     }
     for (final example in word('かみ').examples) {
       expect(example.jp, contains('紙'));
@@ -150,8 +159,9 @@ void main() {
 
   test('les kanji portent des sens en français', () {
     final french = data.kanji.where((k) => k.french.isNotEmpty).length;
-    // KANJIDIC2 traduit presque tout ; quelques kanji rares restent sans.
-    expect(french, greaterThan(data.kanji.length * 9 ~/ 10));
+    // Tous, sans exception : les 51 que KANJIDIC2 ne traduit pas sont écrits
+    // à la main dans tool/kanji_fr_overrides.json.
+    expect(french, data.kanji.length);
     for (final entry in data.kanji.where((k) => k.french.isNotEmpty)) {
       expect(entry.french.length, lessThanOrEqualTo(4), reason: entry.kanji);
       for (final sense in entry.french) {

@@ -15,11 +15,12 @@ embarquées, la progression reste dans le navigateur.
 - **Sens en français et en anglais**, tirés de JMdict, pas d'une traduction
   automatique. Un mot qui veut dire plusieurs choses les montre toutes :
   1 652 mots portent au moins deux sens.
-- **2 881 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
-  s'écrit, puis entièrement en kana pour pouvoir la lire. Neuf sur dix sont
-  traduites en français, le reste en anglais.
+- **2 895 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
+  s'écrit, puis entièrement en kana pour pouvoir la lire. 90 % des phrases
+  sont traduites en français, le reste en anglais.
 - **1 281 kanji**, dont les 79 du N5, avec lectures on et kun et leurs sens
-  en français.
+  en français — tous, les 51 que KANJIDIC2 ne traduit pas étant écrits à la
+  main dans `tool/kanji_fr_overrides.json`.
 - **Mots courants d'abord quand on apprend** : JMdict classe les 24 000 mots
   les plus fréquents de la presse en bandes de 500, et le mode
   d'apprentissage suit ce classement au lieu de l'ordre des kana.
@@ -105,7 +106,8 @@ Les scripts téléchargent leurs sources et les mettent en cache dans
 `tool/.cache/`. `build_data.py` reconstruit la lecture kana de chaque phrase
 d'exemple à partir des lectures annotées de Tatoeba, complétées par
 UniDic. `tool/meaning_overrides.json` corrige à la main les rares entrées que
-JMdict ne couvre pas.
+JMdict ne couvre pas, `tool/kanji_fr_overrides.json` les kanji que KANJIDIC2
+ne traduit pas.
 
 ## Déploiement
 

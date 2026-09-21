@@ -36,6 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, "tool", ".cache")
 OUT = os.path.join(ROOT, "assets", "data")
 OVERRIDES = os.path.join(ROOT, "tool", "meaning_overrides.json")
+KANJI_OVERRIDES = os.path.join(ROOT, "tool", "kanji_fr_overrides.json")
 
 ANKI = "https://raw.githubusercontent.com/jamsinclair/open-anki-jlpt-decks/main/src/{}.csv"
 VOCAB_API = "https://jlpt-vocab-api.vercel.app/api/words?level=5&limit=100&offset={}"
@@ -500,25 +501,32 @@ class KanaLine:
         return result
 
 
-def pick_examples(keys, kana, own, sense, sentences, index, kana_line, limit=2):
-    """Phrases où le mot est employé, et au sens affiché.
+def pick_examples(keys, kana, own, positions, sentences, index, kana_line,
+                  limit=2):
+    """Phrases où le mot est employé, à l'un des sens que la fiche affiche.
 
-Le corpus numérote le sens de chaque mot annoté, et ce numéro suit
-    l'ordre des sens de JMdict : une phrase annotée sur un autre sens parle
-    d'un autre mot et ne sert pas d'exemple.
+    Le corpus numérote le sens de chaque mot annoté, et ce numéro suit l'ordre
+    des sens de JMdict. Une phrase annotée sur un sens que la fiche ne montre
+    pas illustre autre chose et ne sert pas d'exemple — mais la fiche en montre
+    trois depuis qu'un mot donne tous ses sens, et les trois comptent.
+
+    Le corpus ne numérote que pour lever une ambiguïté : une phrase sans numéro
+    porte le sens courant, c'est-à-dire le premier. 915 des phrases de 明日 sont
+    dans ce cas, et elles passaient derrière les trois qui portent un numéro,
+    faute d'être reconnues comme parlant du bon sens.
 
     La recherche part des écritures du mot. Chercher aussi sur la lecture
     ramenait n'importe quel homophone — une phrase sur 他 illustrait 田 — mais
     l'écarter faisait perdre les phrases où le mot s'écrit autrement. La
     lecture reste donc interrogée en dernier, et seulement pour les phrases
-    dont le sens annoté est celui qu'on affiche.
+    dont le sens annoté est l'un de ceux qu'on affiche.
 
     Dernier garde-fou, le lemme annoté doit être une graphie du mot : はし
     ramenait les phrases de 橋 par sa lecture, et leur numéro de sens tombait
     juste par hasard, deux entrées différentes numérotant chacune à partir
     de 1.
     """
-    wanted = None if sense is None else sense + 1
+    wanted = {p + 1 for p in positions}
     allowed = set(keys) | set(own) | {kana}
     lookups = [(key, False) for key in keys]
     if kana not in keys:
@@ -530,10 +538,10 @@ Le corpus numérote le sens de chaque mot annoté, et ce numéro suit
         for idx, tagged, head in index.get(key, []):
             if idx in seen or head not in allowed:
                 continue
-            exact = wanted is not None and tagged == wanted
-            if not exact and tagged is not None and wanted is not None:
+            shown = tagged in wanted or (tagged is None and 1 in wanted)
+            if not shown and tagged is not None and wanted:
                 continue
-            if by_reading and not exact:
+            if by_reading and not shown:
                 continue
             seen.add(idx)
             # À sens égal, une phrase traduite en français passe devant : la
@@ -541,7 +549,7 @@ Le corpus numérote le sens de chaque mot annoté, et ce numéro suit
             # est en français. La longueur départage ensuite, une phrase courte
             # se lit entre deux mots.
             candidates.append((
-                0 if exact else 1,
+                0 if shown else 1,
                 0 if sentences[idx][2] else 1,
                 len(sentences[idx][0]),
                 idx,
@@ -552,7 +560,7 @@ Le corpus numérote le sens de chaque mot annoté, et ce numéro suit
     # écartée plus bas : il faut en garder assez sous la main pour ne pas
     # laisser un mot sans exemple à cause des premières.
     out = []
-    for _exact, _translated, _length, idx in candidates[:40]:
+    for _shown, _translated, _length, idx in candidates[:40]:
         jp, en, fr, annotated = sentences[idx]
         line = kana_line.build(jp, annotated)
         if not line:
@@ -701,6 +709,10 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         # de « s'asseoir ». Il aplatit en revanche tous les sens sur sa ligne,
         # si bien qu'il les couvre déjà : 青 y vaut « bleu, vert ».
         # Un sens écrit à la main ne se complète pas, il remplace l'entrée.
+        # `shown` retient la position de chaque sens affiché : c'est ce qui
+        # permet ensuite de retenir une phrase annotée sur le deuxième ou le
+        # troisième, qui illustre le mot tel que la fiche le montre.
+        shown = [] if position is None else [position]
         if entry_id is not None and not override.get("en") and not override.get("fr"):
             others = []
             for position_other, text in senses_for(english, entry_id):
@@ -709,6 +721,7 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
                 if position_other == position or text == en or text in others:
                     continue
                 others.append(text)
+                shown.append(position_other)
                 if len(others) == OTHER_SENSES:
                     break
             if others:
@@ -722,7 +735,7 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
             if usual and text not in keys and text != kana
         ]
         examples = pick_examples(
-            keys, kana, own, position, sentences, index, kana_line
+            keys, kana, own, shown, sentences, index, kana_line
         )
         if examples:
             entry["examples"] = examples
@@ -783,6 +796,16 @@ def load_kanjidic():
 def build_kanji(words):
     levels = json.loads(fetch(KANJI_DATA, "kanji.json"))
     data = load_kanjidic()
+    # KANJIDIC2 ne traduit pas tout : 51 kanji hors listes officielles restent
+    # sans français alors qu'ils portent du vocabulaire courant — 鍵, 椅子,
+    # 醤油. Ces gloses-là sont écrites à la main.
+    french_overrides = {}
+    if os.path.exists(KANJI_OVERRIDES):
+        french_overrides = {
+            k: v for k, v in
+            json.load(io.open(KANJI_OVERRIDES, encoding="utf-8")).items()
+            if not k.startswith("_")
+        }
     in_vocab = {}
     for w in sorted(words, key=lambda w: -w["level"]):
         for ch in w["word"]:
@@ -819,7 +842,10 @@ def build_kanji(words):
             "on": on,
             "kun": kun[:4],
             "meanings": [m.lower() for m in info["en"][:4]],
-            "fr": [m.lower() for m in info["fr"][:4]],
+            "fr": [
+                m.lower() for m in
+                (info["fr"] or french_overrides.get(ch) or [])[:4]
+            ],
             "strokes": info["strokes"],
             "grade": info["grade"],
             "jlpt": jlpt(ch),
@@ -878,7 +904,9 @@ def main():
           % (len(words), with_ex, with_fr))
     print("sens multiples : %d mots" % sum(1 for w in words if w.get("senses")))
     print("fréquence connue : %d mots" % sum(1 for w in words if "freq" in w))
-    print("kanji : %d (%d au N5)" % (len(kanji), sum(1 for k in kanji if k["jlpt"] == 5)))
+    print("kanji : %d (%d au N5), %d avec sens français"
+          % (len(kanji), sum(1 for k in kanji if k["jlpt"] == 5),
+             sum(1 for k in kanji if k["fr"])))
 
     if missing_fr:
         path = os.path.join(CACHE, "missing_fr.json")
