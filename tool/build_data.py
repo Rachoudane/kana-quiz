@@ -769,8 +769,51 @@ def reads_as(parts, writings, kana):
     return True
 
 
+SURU_FORM = re.compile("^(を|は|も|が)?(し|す|さ|せ)")
+
+
+def literal_examples(word, sentences, kana_line, limit=2):
+    """Phrases où le mot apparaît tel quel, faute d'être annoté.
+
+    Le corpus Tanaka n'annote que ce qu'il sait rattacher à une entrée, et
+    laisse de côté une partie des mots écrits en kana : ボタン n'y figure
+    jamais, あっち non plus, que le corpus range sous 彼方(あちら). Ces mots
+    restaient sans exemple alors que les phrases existent.
+
+    La recherche littérale ne vaut que pour un mot sans kanji : sa graphie est
+    sa lecture, il n'y a donc pas d'homographe à confondre. Reste l'homonymie
+    de surface — あの est dans あのう — et le mot doit pour cela former un
+    découpage à lui seul.
+    """
+    candidates = []
+    for idx, (jp, _en, fr, _annotated) in enumerate(sentences):
+        if word not in jp:
+            continue
+        candidates.append((
+            0 if fr else 1,
+            1 if NOT_SPOKEN.search(jp) else 0,
+            len(jp),
+            idx,
+        ))
+    candidates.sort()
+
+    out = []
+    for _translated, _written, _length, idx in candidates[:40]:
+        jp, en, fr, annotated = sentences[idx]
+        parts = kana_line.parts(jp, annotated)
+        if not parts or not any(text == word for text, _reading in parts):
+            continue
+        example = {"jp": jp, "kana": "".join(r for _t, r in parts), "en": en}
+        if fr:
+            example["fr"] = fr
+        out.append(example)
+        if len(out) == limit:
+            break
+    return out
+
+
 def pick_examples(keys, kana, own, regular, positions, sentences, index,
-                  kana_line, limit=2):
+                  kana_line, stem_noun=None, limit=2):
     """Phrases où le mot est employé, à l'un des sens que la fiche affiche.
 
     Le corpus numérote le sens de chaque mot annoté, et ce numéro suit l'ordre
@@ -815,9 +858,17 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
     lookups = [(key, False) for key in keys]
     if kana not in keys:
         lookups.append((kana, True))
+    # 計画する n'a pas d'entrée au corpus, qui annote le nom 計画 puis 為る.
+    # Sans interroger le nom, treize verbes en する restaient sans exemple.
+    if stem_noun and stem_noun not in keys:
+        lookups.append((stem_noun, False))
+        allowed.add(stem_noun)
+    else:
+        stem_noun = None
 
     seen = set()
     candidates = []
+    from_noun = set()
     for key, by_reading in lookups:
         for idx, tagged, head, said in index.get(key, []):
             if idx in seen or head not in allowed:
@@ -830,6 +881,8 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
             if by_reading and not shown:
                 continue
             seen.add(idx)
+            if stem_noun and key == stem_noun:
+                from_noun.add(idx)
             # À sens égal, une phrase traduite en français passe devant : la
             # moitié des phrases de Tatoeba n'a que l'anglais, et l'application
             # est en français. Vient ensuite la phrase qui s'écrit en entier :
@@ -868,6 +921,14 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
         # annonçait une lecture que la phrase en dessous ne prononçait pas.
         line = "".join(reading for _text, reading in parts)
         if stem and stem not in kata_to_hira(line):
+            continue
+        # Une phrase trouvée par le nom seul ne fait pas le verbe : 計画 doit
+        # y être suivi d'une forme de する pour illustrer 計画する. Les phrases
+        # trouvées par l'écriture complète n'ont rien à prouver.
+        if idx in from_noun and not any(
+            SURU_FORM.match(jp[at + len(stem_noun):])
+            for at in range(len(jp)) if jp.startswith(stem_noun, at)
+        ):
             continue
         # Là où le mot est écrit tel quel, sa lecture doit être celle de la
         # fiche, et pas seulement figurer quelque part : 九 « く » passait
@@ -1074,8 +1135,26 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
             if usual and ok and text not in (display, kana)
         ]
         examples = pick_examples(
-            keys, kana, own, regular, shown, sentences, index, kana_line
+            keys, kana, own, regular, shown, sentences, index, kana_line,
+            stem_noun=(
+                display[:-2] if suru and display.endswith("する") else None
+            ),
         )
+        # Repêchage littéral : réservé aux mots sans kanji, et dont la lecture
+        # ne renvoie qu'à un seul mot courant. La recherche ne sait rien du
+        # sens, et あの « euh » se retrouvait illustré par あの城は美しい, qui
+        # est l'autre あの, « ce ». ボタン garde les siens : la pivoine 牡丹 se
+        # lit aussi ボタン, mais plus personne ne l'écrit ainsi.
+        rivals = sum(
+            1 for other in english[2].get(kana, ())
+            if reads_commonly(english[0][other], kana)
+        )
+        if (
+            not examples
+            and rivals <= 1
+            and not any(HAS_KANJI.search(text) for text in [display] + forms)
+        ):
+            examples = literal_examples(display, sentences, kana_line)
         if examples:
             entry["examples"] = examples
         words.append(entry)
