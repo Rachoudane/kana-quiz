@@ -26,6 +26,21 @@ void main() {
     );
   });
 
+  test('les autres sens ne répètent pas le premier', () {
+    final several = data.words.where((w) => w.senses.isNotEmpty).toList();
+    // JMdict découpe les sens des mots courants : plus d'un mot sur trois en
+    // a au moins deux. Si ce compte s'effondre, la construction a décroché.
+    expect(several.length, greaterThan(data.words.length ~/ 3));
+    for (final word in several) {
+      expect(word.senses.length, lessThanOrEqualTo(2), reason: word.kana);
+      expect(word.senses, isNot(contains(word.en)), reason: word.kana);
+      expect(word.senses.toSet().length, word.senses.length, reason: word.kana);
+      for (final sense in word.senses) {
+        expect(sense.trim(), isNotEmpty, reason: word.kana);
+      }
+    }
+  });
+
   test('chaque mot a un sens français et un sens anglais', () {
     for (final word in data.words) {
       expect(word.kana, isNotEmpty, reason: word.id);
@@ -46,9 +61,17 @@ void main() {
           isFalse,
           reason: 'reste des kanji dans « ${example.kana} »',
         );
-        expect(example.en, isNotEmpty, reason: example.jp);
+        // Une phrase de Tatoeba peut n'avoir que le français ou que
+        // l'anglais : c'est la traduction affichée qui doit exister.
+        expect(example.translation, isNotEmpty, reason: example.jp);
       }
     }
+  });
+
+  test('les exemples sont traduits en français dans leur grande majorité', () {
+    final examples = [for (final w in data.words) ...w.examples];
+    final french = examples.where((e) => e.fr.isNotEmpty).length;
+    expect(french, greaterThan(examples.length * 3 ~/ 4));
   });
 
   test('l\'écriture d\'un verbe en する garde son する', () {
@@ -123,6 +146,44 @@ void main() {
         );
       }
     }
+  });
+
+  test('les kanji portent des sens en français', () {
+    final french = data.kanji.where((k) => k.french.isNotEmpty).length;
+    // KANJIDIC2 traduit presque tout ; quelques kanji rares restent sans.
+    expect(french, greaterThan(data.kanji.length * 9 ~/ 10));
+    for (final entry in data.kanji.where((k) => k.french.isNotEmpty)) {
+      expect(entry.french.length, lessThanOrEqualTo(4), reason: entry.kanji);
+      for (final sense in entry.french) {
+        expect(sense.trim(), isNotEmpty, reason: entry.kanji);
+      }
+    }
+  });
+
+  test('les bandes de fréquence couvrent les mots courants', () {
+    final ranked = data.words.where((w) => w.freq != null).toList();
+    expect(ranked.length, greaterThan(data.words.length ~/ 2));
+    for (final word in ranked) {
+      expect(word.freq, inInclusiveRange(1, 48), reason: word.kana);
+    }
+    // Un mot sans bande n'est pas rare, il est hors des 24 000 relevés : il
+    // passe après, jamais avant.
+    final unranked = data.words.firstWhere((w) => w.freq == null);
+    expect(unranked.freqRank, greaterThan(48));
+  });
+
+  test('apprendre commence par les mots les plus courants', () {
+    final items = const LearningMode().buildItems(
+      ModeContext(data: data, config: const {'level': '5', 'script': 'all'}),
+    );
+    final ranks = [
+      for (final item in items.take(40))
+        data.wordById(item.id)?.freqRank ?? 99,
+    ];
+    // Les quarante premiers mots enseignés sont des mots courants, pas le
+    // début de l'ordre des kana.
+    final median = ([...ranks]..sort())[ranks.length ~/ 2];
+    expect(median, lessThan(15));
   });
 
   test('chaque mode produit des questions jouables', () {

@@ -77,5 +77,6 @@ class KanaReadingMode extends QuizMode {
         secondary: word.hasKanjiForm ? word.word : null,
         detail: word.forms.length > 1 ? word.forms.skip(1).join(' · ') : null,
         examples: word.examples,
+        senses: word.senses,
       );
 }

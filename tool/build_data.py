@@ -5,16 +5,22 @@ Sources, téléchargées puis mises en cache dans tool/.cache/ :
   - open-anki-jlpt-decks  : listes de vocabulaire JLPT N5, N4, N3
   - jlpt-vocab-api        : seconde liste N5, pour compléter la première
   - JMdict (simplifié)    : sens français et anglais, dictionnaire de référence
-  - Tanaka Corpus (EDRDG) : phrases d'exemple japonais / anglais, CC BY
-  - kanji-data            : lectures, sens et niveau JLPT des kanji
+  - JMdict (XML, EDRDG)   : bandes de fréquence nf01 à nf48
+  - Tatoeba               : phrases d'exemple, leurs traductions et leurs
+                            lectures annotées (successeur vivant du corpus
+                            Tanaka, régénéré chaque semaine)
+  - KANJIDIC2 (EDRDG)     : lectures et sens des kanji, anglais et français
+  - kanji-data            : niveau JLPT des kanji, que KANJIDIC2 ne donne pas
+                            sur l'échelle N5-N1
 
 Les lectures kana des phrases d'exemple sont reconstruites à partir des
-lectures annotées du Tanaka Corpus, complétées par UniDic via fugashi.
+lectures annotées de Tatoeba, complétées par UniDic via fugashi.
 
 Prérequis : pip install fugashi unidic-lite
 Usage     : python tool/build_data.py
 """
 
+import bz2
 import csv
 import gzip
 import io
@@ -24,6 +30,7 @@ import re
 import sys
 import tarfile
 import urllib.request
+import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, "tool", ".cache")
@@ -33,10 +40,23 @@ OVERRIDES = os.path.join(ROOT, "tool", "meaning_overrides.json")
 ANKI = "https://raw.githubusercontent.com/jamsinclair/open-anki-jlpt-decks/main/src/{}.csv"
 VOCAB_API = "https://jlpt-vocab-api.vercel.app/api/words?level=5&limit=100&offset={}"
 KANJI_DATA = "https://raw.githubusercontent.com/davidluzgouveia/kanji-data/master/kanji.json"
-TANAKA = "http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz"
+KANJIDIC2 = "http://ftp.edrdg.org/pub/Nihongo/kanjidic2.xml.gz"
 JMDICT_RELEASE = "https://api.github.com/repos/scriptin/jmdict-simplified/releases/latest"
+JMDICT_XML = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
+TATOEBA = "https://downloads.tatoeba.org/exports/"
+TATOEBA_INDICES = TATOEBA + "jpn_indices.tar.bz2"
+TATOEBA_LINKS = TATOEBA + "per_language/jpn/jpn-%s_links.tsv.bz2"
+TATOEBA_TEXTS = TATOEBA + "per_language/%(lang)s/%(lang)s_sentences.tsv.bz2"
+
+# Langues de traduction des exemples, par ordre de préférence. L'application
+# est en français : une phrase traduite en français vaut mieux qu'en anglais.
+EXAMPLE_LANGS = ["fra", "eng"]
 
 LEVELS = [5, 4, 3]
+
+# Sens montrés en plus du principal. Au-delà de trois lignes la fiche devient
+# une entrée de dictionnaire, et on ne la lit plus entre deux mots.
+OTHER_SENSES = 2
 
 HIRAGANA = "぀-ゟ"
 KATAKANA = "゠-ヿー"
@@ -298,6 +318,27 @@ def glosses_for(index, entry_id, position=None, limit=3):
     return None, None
 
 
+def senses_for(index, entry_id, limit=3):
+    """Tous les sens d'une entrée : [(position, gloses)], les vides écartés.
+
+    Même découpage que `glosses_for`, mais sans en choisir un. La position est
+    conservée : c'est elle qui apparie le sens anglais et le sens français.
+    """
+    record = index[0].get(entry_id)
+    if not record:
+        return []
+    out = []
+    for i, sense in enumerate(record[1]):
+        texts = []
+        for gloss in sense:
+            gloss = gloss.strip()
+            if gloss and gloss not in texts:
+                texts.append(gloss)
+        if texts:
+            out.append((i, ", ".join(texts[:limit])))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Phrases d'exemple
 # ---------------------------------------------------------------------------
@@ -323,46 +364,104 @@ def surface_reading(head, reading, surface):
     return None
 
 
+def tatoeba_texts(lang):
+    """Phrases d'une langue de Tatoeba : identifiant -> texte."""
+    raw = bz2.decompress(
+        fetch(TATOEBA_TEXTS % {"lang": lang},
+              "tatoeba_%s_sentences.tsv.bz2" % lang, binary=True)
+    )
+    out = {}
+    for line in raw.decode("utf-8", "replace").splitlines():
+        parts = line.split("	")
+        if len(parts) >= 3 and parts[2].strip():
+            out[parts[0]] = parts[2].strip()
+    return out
+
+
+def tatoeba_links(lang):
+    """Traductions d'une phrase japonaise : identifiant -> identifiants."""
+    raw = bz2.decompress(
+        fetch(TATOEBA_LINKS % lang, "tatoeba_jpn-%s_links.tsv.bz2" % lang,
+              binary=True)
+    )
+    out = {}
+    for line in raw.decode("utf-8", "replace").splitlines():
+        parts = line.split("	")
+        if len(parts) >= 2:
+            out.setdefault(parts[0], []).append(parts[1])
+    return out
+
+
+def tatoeba_indices():
+    """Lectures annotées des phrases japonaises : identifiant -> ligne B.
+
+    C'est l'annotation du corpus Tanaka, que Tatoeba régénère : chaque mot y
+    est donné avec sa lecture, son numéro de sens et sa forme fléchie.
+    """
+    raw = fetch(TATOEBA_INDICES, "jpn_indices.tar.bz2", binary=True)
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:bz2") as tar:
+        member = next(m for m in tar.getmembers() if m.name.endswith(".csv"))
+        text = tar.extractfile(member).read().decode("utf-8", "replace")
+    out = {}
+    for line in text.splitlines():
+        parts = line.split("	")
+        if len(parts) >= 3 and parts[2].strip():
+            out[parts[0]] = parts[2]
+    return out
+
+
 def load_examples():
-    """Phrases (japonais, anglais) + index lemme -> phrases + lectures annotées.
+    """Phrases (japonais, anglais, français) + index lemme -> phrases.
 
     Chaque entrée de l'index retient le numéro de sens annoté par le corpus,
     `する[1]` contre `する[2]` : sans lui, une phrase illustre un homonyme.
+
+    Une phrase sans aucune traduction ne sert à rien et n'est pas gardée.
     """
-    raw = gzip.decompress(fetch(TANAKA, "examples.utf.gz", binary=True))
-    text = raw.decode("utf-8", "replace")
-    sentences = []   # (japonais, anglais, {surface: lecture})
-    index = {}
-    pending = None
-    for line in text.splitlines():
-        if line.startswith("A: "):
-            body = line[3:].split("#ID=")[0]
-            parts = body.split("\t")
-            pending = (parts[0].strip(), parts[1].strip() if len(parts) > 1 else "")
-        elif line.startswith("B: ") and pending:
-            jp, en = pending
-            pending = None
-            if not en or not 6 <= len(jp) <= 46:
+    japanese = tatoeba_texts("jpn")
+    indices = tatoeba_indices()
+    translations = {}
+    for lang in EXAMPLE_LANGS:
+        texts = tatoeba_texts(lang)
+        for source, targets in tatoeba_links(lang).items():
+            if source not in indices:
                 continue
-            readings = {}
-            lemmas = []
-            for token in line[3:].split():
-                m = TOKEN_RE.match(token)
-                if not m:
-                    continue
-                head, reading, sense, surface = m.groups()
-                sense = int(sense) if sense else None
-                lemmas.append((head, sense, head))
-                if reading and not reading.startswith("#"):
-                    lemmas.append((reading, sense, head))
-                    if HAS_KANJI.search(head):
-                        kana = surface_reading(head, reading, surface or head)
-                        if kana and not HAS_KANJI.search(kana):
-                            readings[surface or head] = kana
-            idx = len(sentences)
-            sentences.append((jp, en, readings))
-            for lemma, sense, head in set(lemmas):
-                index.setdefault(lemma, []).append((idx, sense, head))
+            for target in targets:
+                text = texts.get(target)
+                if text:
+                    translations.setdefault(source, {})[lang] = text
+                    break
+
+    sentences = []   # (japonais, anglais, français, {surface: lecture})
+    index = {}
+    # Les identifiants sont triés : le fichier de Tatoeba n'est pas garanti
+    # dans l'ordre, et deux constructions doivent donner le même jeu.
+    for sentence_id in sorted(indices, key=int):
+        jp = japanese.get(sentence_id)
+        if not jp or not 6 <= len(jp) <= 46:
+            continue
+        pair = translations.get(sentence_id)
+        if not pair:
+            continue
+        readings = {}
+        lemmas = []
+        for token in indices[sentence_id].split():
+            m = TOKEN_RE.match(token)
+            if not m:
+                continue
+            head, reading, sense, surface = m.groups()
+            sense = int(sense) if sense else None
+            lemmas.append((head, sense, head))
+            if reading and not reading.startswith("#"):
+                lemmas.append((reading, sense, head))
+                if HAS_KANJI.search(head):
+                    kana = surface_reading(head, reading, surface or head)
+                    if kana and not HAS_KANJI.search(kana):
+                        readings[surface or head] = kana
+        idx = len(sentences)
+        sentences.append((jp, pair.get("eng", ""), pair.get("fra", ""), readings))
+        for lemma, sense, head in set(lemmas):
+            index.setdefault(lemma, []).append((idx, sense, head))
     return sentences, index
 
 
@@ -404,7 +503,7 @@ class KanaLine:
 def pick_examples(keys, kana, own, sense, sentences, index, kana_line, limit=2):
     """Phrases où le mot est employé, et au sens affiché.
 
-    Le corpus Tanaka numérote le sens de chaque mot annoté, et ce numéro suit
+Le corpus numérote le sens de chaque mot annoté, et ce numéro suit
     l'ordre des sens de JMdict : une phrase annotée sur un autre sens parle
     d'un autre mot et ne sert pas d'exemple.
 
@@ -437,19 +536,31 @@ def pick_examples(keys, kana, own, sense, sentences, index, kana_line, limit=2):
             if by_reading and not exact:
                 continue
             seen.add(idx)
-            candidates.append((0 if exact else 1, len(sentences[idx][0]), idx))
+            # À sens égal, une phrase traduite en français passe devant : la
+            # moitié des phrases de Tatoeba n'a que l'anglais, et l'application
+            # est en français. La longueur départage ensuite, une phrase courte
+            # se lit entre deux mots.
+            candidates.append((
+                0 if exact else 1,
+                0 if sentences[idx][2] else 1,
+                len(sentences[idx][0]),
+                idx,
+            ))
     candidates.sort()
 
     # Une phrase dont on ne sait pas reconstruire la ligne en kana est
     # écartée plus bas : il faut en garder assez sous la main pour ne pas
     # laisser un mot sans exemple à cause des premières.
     out = []
-    for _exact, _length, idx in candidates[:40]:
-        jp, en, annotated = sentences[idx]
+    for _exact, _translated, _length, idx in candidates[:40]:
+        jp, en, fr, annotated = sentences[idx]
         line = kana_line.build(jp, annotated)
         if not line:
             continue
-        out.append({"jp": jp, "kana": line, "en": en})
+        example = {"jp": jp, "kana": line, "en": en}
+        if fr:
+            example["fr"] = fr
+        out.append(example)
         if len(out) == limit:
             break
     return out
@@ -459,7 +570,33 @@ def pick_examples(keys, kana, own, sense, sentences, index, kana_line, limit=2):
 # Assemblage
 # ---------------------------------------------------------------------------
 
-def build_vocab(sentences, index, kana_line, french, english, overrides):
+def load_frequency():
+    """Rang de fréquence par graphie et par lecture, d'après JMdict.
+
+    JMdict marque les 24 000 mots les plus fréquents de la presse en bandes
+    de 500, `nf01` à `nf48` : plus la bande est basse, plus le mot est
+    courant. La version simplifiée ne garde qu'un drapeau « courant » oui ou
+    non, le XML d'origine garde les bandes.
+
+    Un mot absent des bandes n'est pas rare, il est seulement hors des 24 000.
+    """
+    raw = gzip.decompress(fetch(JMDICT_XML, "JMdict_e.gz", binary=True))
+    text = raw.decode("utf-8", "replace")
+    out = {}
+    for form in re.findall(r"<(?:k_ele|r_ele)>(.*?)</(?:k_ele|r_ele)>", text, re.S):
+        written = re.search(r"<(?:keb|reb)>(.*?)</(?:keb|reb)>", form)
+        bands = [int(n) for n in re.findall(r"<(?:ke|re)_pri>nf(\d+)</", form)]
+        if not written or not bands:
+            continue
+        rank = min(bands)
+        name = written.group(1)
+        if name not in out or rank < out[name]:
+            out[name] = rank
+    return out
+
+
+def build_vocab(sentences, index, kana_line, french, english, overrides,
+                frequency):
     merged = {}
     sources = load_api()
     for level in LEVELS:
@@ -546,6 +683,36 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
             "en": en,
             "script": "katakana" if HAS_KATAKANA.search(kana) else "hiragana",
         }
+
+        # La bande de fréquence du mot : la meilleure de ses graphies et de sa
+        # lecture. Elle sert à présenter les mots courants d'abord, elle
+        # n'entre pas dans le tirage d'une partie chronométrée.
+        bands = [
+            frequency[text]
+            for text in [kana, word, display] + forms
+            if text in frequency
+        ]
+        if bands:
+            entry["freq"] = min(bands)
+
+        # Les autres sens du mot, en anglais seulement. Le français de JMdict
+        # n'a pas le même découpage : lu à la position du sens anglais il
+        # renvoie autre chose, 掛ける donnait « to put on (a blanket) » en face
+        # de « s'asseoir ». Il aplatit en revanche tous les sens sur sa ligne,
+        # si bien qu'il les couvre déjà : 青 y vaut « bleu, vert ».
+        # Un sens écrit à la main ne se complète pas, il remplace l'entrée.
+        if entry_id is not None and not override.get("en") and not override.get("fr"):
+            others = []
+            for position_other, text in senses_for(english, entry_id):
+                # Deux sens voisins finissent parfois sur la même glose une
+                # fois coupés à trois : バス valait « bus » deux fois.
+                if position_other == position or text == en or text in others:
+                    continue
+                others.append(text)
+                if len(others) == OTHER_SENSES:
+                    break
+            if others:
+                entry["senses"] = others
         # Les graphies rares ne servent pas à chercher des exemples : 為る
         # est une écriture de する comme de なる, et les phrases de l'un
         # illustraient l'autre.
@@ -567,29 +734,81 @@ def build_vocab(sentences, index, kana_line, french, english, overrides):
     return words, missing_fr
 
 
+def load_kanjidic():
+    """Lectures et sens des kanji, d'après KANJIDIC2.
+
+    La source d'origine, tenue à jour par l'EDRDG, et la seule qui porte des
+    sens en français. Les lectures on y sont en katakana, comme le veut
+    l'usage des dictionnaires ; l'application les affiche en hiragana, à côté
+    des lectures kun.
+
+    Le niveau JLPT de KANJIDIC2 est l'ancienne échelle à quatre niveaux : il
+    n'est pas lu ici, c'est kanji-data qui donne l'échelle N5-N1.
+    """
+    raw = gzip.decompress(fetch(KANJIDIC2, "kanjidic2.xml.gz", binary=True))
+    root = ET.fromstring(raw)
+    out = {}
+    for character in root.findall("character"):
+        literal = character.findtext("literal")
+        if not literal:
+            continue
+        misc = character.find("misc")
+        on, kun, meanings_en, meanings_fr = [], [], [], []
+        for group in character.findall("reading_meaning/rmgroup"):
+            for reading in group.findall("reading"):
+                kind = reading.get("r_type")
+                if kind == "ja_on":
+                    on.append(kata_to_hira(reading.text or ""))
+                elif kind == "ja_kun":
+                    kun.append(reading.text or "")
+            for meaning in group.findall("meaning"):
+                language = meaning.get("m_lang")
+                if language == "fr":
+                    meanings_fr.append(meaning.text or "")
+                elif language is None:
+                    meanings_en.append(meaning.text or "")
+        out[literal] = {
+            "on": on,
+            "kun": kun,
+            "en": meanings_en,
+            "fr": meanings_fr,
+            "strokes": int(misc.findtext("stroke_count") or 0) or None
+            if misc is not None else None,
+            "grade": int(misc.findtext("grade") or 0) or None
+            if misc is not None else None,
+        }
+    return out
+
+
 def build_kanji(words):
-    data = json.loads(fetch(KANJI_DATA, "kanji.json"))
+    levels = json.loads(fetch(KANJI_DATA, "kanji.json"))
+    data = load_kanjidic()
     in_vocab = {}
     for w in sorted(words, key=lambda w: -w["level"]):
         for ch in w["word"]:
             if HAS_KANJI.match(ch):
                 in_vocab.setdefault(ch, []).append(w["id"])
 
-    chars = {c for c, v in data.items() if (v.get("jlpt_new") or 0) >= 3}
+    def jlpt(ch):
+        return (levels.get(ch) or {}).get("jlpt_new") or None
+
+    chars = {c for c in levels if (jlpt(c) or 0) >= 3}
     chars |= set(in_vocab)
 
     def sort_key(c):
-        info = data.get(c, {})
-        return (-(info.get("jlpt_new") or 0), info.get("grade") or 99, c)
+        return (-(jlpt(c) or 0), (data.get(c) or {}).get("grade") or 99, c)
 
     out = []
     for ch in sorted(chars, key=sort_key):
         info = data.get(ch)
         if not info:
             continue
-        on = [r for r in info.get("readings_on", []) if KANA_RE.match(r)][:4]
+        on = [r for r in info["on"] if KANA_RE.match(r)][:4]
         kun = []
-        for reading in info.get("readings_kun", []):
+        for reading in info["kun"]:
+            # KANJIDIC2 sépare l'okurigana par un point et marque les préfixes
+            # et suffixes par un tiret : 食.べる, -がわ. Seule la partie lue
+            # dans le kanji lui-même nous intéresse.
             reading = reading.split(".")[0].replace("-", "")
             if KANA_RE.match(reading) and reading not in kun:
                 kun.append(reading)
@@ -599,10 +818,11 @@ def build_kanji(words):
             "kanji": ch,
             "on": on,
             "kun": kun[:4],
-            "meanings": [m.lower() for m in info.get("meanings", [])[:4]],
-            "strokes": info.get("strokes"),
-            "grade": info.get("grade"),
-            "jlpt": info.get("jlpt_new"),
+            "meanings": [m.lower() for m in info["en"][:4]],
+            "fr": [m.lower() for m in info["fr"][:4]],
+            "strokes": info["strokes"],
+            "grade": info["grade"],
+            "jlpt": jlpt(ch),
             "words": in_vocab.get(ch, [])[:4],
         })
     return out
@@ -617,11 +837,14 @@ def main():
     sys.stderr.write("chargement de JMdict\n")
     french = load_jmdict("fre")
     english = load_jmdict("eng")
+    frequency = load_frequency()
     sys.stderr.write("chargement des exemples\n")
     sentences, index = load_examples()
     kana_line = KanaLine()
 
-    words, missing_fr = build_vocab(sentences, index, kana_line, french, english, overrides)
+    words, missing_fr = build_vocab(
+        sentences, index, kana_line, french, english, overrides, frequency
+    )
     kanji = build_kanji(words)
 
     with open(os.path.join(OUT, "vocab.json"), "w", encoding="utf-8") as f:
@@ -629,8 +852,8 @@ def main():
             "version": 2,
             "count": len(words),
             "attribution": "Vocabulaire : open-anki-jlpt-decks, jlpt-vocab-api. "
-                           "Sens : JMdict / EDRDG (CC BY-SA 4.0). "
-                           "Exemples : Tanaka Corpus / Tatoeba (CC BY 2.0 FR).",
+                           "Sens et fréquences : JMdict / EDRDG (CC BY-SA 4.0). "
+                           "Exemples et traductions : Tatoeba (CC BY 2.0 FR).",
             "words": words,
         }, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -638,8 +861,8 @@ def main():
         json.dump({
             "version": 2,
             "count": len(kanji),
-            "attribution": "Kanji : kanji-data (davidluzgouveia), dérivé de "
-                           "KANJIDIC2 / EDRDG (CC BY-SA 3.0).",
+            "attribution": "Kanji : KANJIDIC2 / EDRDG (CC BY-SA 4.0). "
+                           "Niveaux JLPT : kanji-data (davidluzgouveia).",
             "kanji": kanji,
         }, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -648,7 +871,13 @@ def main():
         kata = sum(1 for w in pool if w["script"] == "katakana")
         print("N%d : %d mots (%d katakana)" % (level, len(pool), kata))
     with_ex = sum(1 for w in words if w.get("examples"))
-    print("total : %d mots, %d avec exemple" % (len(words), with_ex))
+    with_fr = sum(
+        1 for w in words if any(e.get("fr") for e in w.get("examples", []))
+    )
+    print("total : %d mots, %d avec exemple, %d traduit en français"
+          % (len(words), with_ex, with_fr))
+    print("sens multiples : %d mots" % sum(1 for w in words if w.get("senses")))
+    print("fréquence connue : %d mots" % sum(1 for w in words if "freq" in w))
     print("kanji : %d (%d au N5)" % (len(kanji), sum(1 for k in kanji if k["jlpt"] == 5)))
 
     if missing_fr:

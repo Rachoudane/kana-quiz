@@ -81,7 +81,9 @@ class KanjiReadingMode extends QuizMode {
       prompt: entry.kanji,
       promptScript: 'kanji',
       readings: readings.map(RomajiReading.of).toList(),
-      fr: related.isNotEmpty ? related.first.fr : '',
+      // Les sens du kanji, pas ceux du premier mot qui le contient : 日
+      // valait « après-demain » parce que 明後日 ouvrait sa liste de mots.
+      fr: entry.french.join(', '),
       en: entry.meanings.join(', '),
       detail: _detail(entry),
       examples: related.isNotEmpty ? related.first.examples : const [],

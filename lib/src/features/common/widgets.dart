@@ -168,13 +168,7 @@ class ItemRevealCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 5),
-                  if (item.en.isNotEmpty)
-                    Text(
-                      item.en,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  ..._senses(theme),
                   if (item.fr.isNotEmpty)
                     Text(
                       item.fr,
@@ -245,6 +239,25 @@ class ItemRevealCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Les sens du mot, en anglais. Numérotés seulement quand il y en a
+  /// plusieurs : un « 1. » solitaire n'apprend rien.
+  ///
+  /// Le français reste dessous, sans numéro. Sa ligne ne découpe pas les sens,
+  /// elle les aplatit tous : la mettre en face d'un numéro mentirait.
+  List<Widget> _senses(ThemeData theme) {
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    final senses = item.allSenses;
+    if (senses.length < 2) {
+      return [if (senses.isNotEmpty) Text(senses.first, style: style)];
+    }
+    return [
+      for (var i = 0; i < senses.length; i++)
+        Text('${i + 1}. ${senses[i]}', style: style),
+    ];
+  }
 }
 
 /// Une phrase d'exemple : écriture normale, lecture en kana, traduction.
@@ -285,7 +298,7 @@ class ExampleBlock extends StatelessWidget {
           ],
           const SizedBox(height: 3),
           Text(
-            example.en,
+            example.translation,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontStyle: FontStyle.italic,

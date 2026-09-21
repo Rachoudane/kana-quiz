@@ -133,8 +133,15 @@ void main() {
 
     // La fiche montre le sens anglais, le sens français, et l'exemple :
     // écriture normale, puis lecture en kana quand elle en diffère.
+    // Un mot à plusieurs sens les numérote, le premier compris.
     expect(find.text(word.fr), findsOneWidget);
-    expect(find.text(word.en), findsOneWidget);
+    expect(
+      find.text(word.senses.isEmpty ? word.en : '1. ${word.en}'),
+      findsOneWidget,
+    );
+    for (var i = 0; i < word.senses.length; i++) {
+      expect(find.text('${i + 2}. ${word.senses[i]}'), findsOneWidget);
+    }
     if (word.examples.isNotEmpty) {
       expect(find.text(word.examples.first.jp), findsOneWidget);
       expect(find.text(word.examples.first.kana), findsOneWidget);
@@ -144,6 +151,42 @@ void main() {
     await advance(tester);
     await tester.tap(find.text('Arrêter'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('la fiche numérote les sens quand il y en a plusieurs', (
+    tester,
+  ) async {
+    Future<void> pumpCard(List<String> senses) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ItemRevealCard(
+              item: QuizItem(
+                id: 'v0000',
+                prompt: 'あお',
+                promptScript: 'hiragana',
+                readings: [RomajiReading.of('あお')],
+                en: 'blue, azure',
+                fr: 'bleu, vert',
+                senses: senses,
+              ),
+              correct: true,
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpCard(const []);
+    expect(find.text('blue, azure'), findsOneWidget);
+    expect(find.text('1. blue, azure'), findsNothing);
+
+    await pumpCard(const ['green', 'green light (traffic)']);
+    expect(find.text('1. blue, azure'), findsOneWidget);
+    expect(find.text('2. green'), findsOneWidget);
+    expect(find.text('3. green light (traffic)'), findsOneWidget);
+    // Le français ne se numérote pas : sa ligne couvre tous les sens.
+    expect(find.text('bleu, vert'), findsOneWidget);
   });
 
   testWidgets('une phrase sans kanji ne se répète pas', (tester) async {

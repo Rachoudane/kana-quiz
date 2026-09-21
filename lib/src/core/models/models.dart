@@ -2,12 +2,13 @@ import '../romaji/romaji_reading.dart';
 
 /// Phrase d'exemple : l'originale, la même en kana, et sa traduction.
 class Example {
-  const Example(this.jp, this.kana, this.en);
+  const Example(this.jp, this.kana, this.en, [this.fr = '']);
 
   factory Example.fromJson(Map<String, dynamic> json) => Example(
         json['jp'] as String,
         json['kana'] as String,
         json['en'] as String,
+        json['fr'] as String? ?? '',
       );
 
   /// Phrase telle qu'elle s'écrit, avec ses kanji.
@@ -17,6 +18,15 @@ class Example {
   final String kana;
 
   final String en;
+
+  /// La même phrase en français, quand Tatoeba en a une traduction.
+  final String fr;
+
+  /// La traduction à montrer : le français, l'anglais à défaut.
+  ///
+  /// Neuf phrases sur dix ont une traduction française ; pour les autres
+  /// l'anglais vaut mieux que rien.
+  String get translation => fr.isNotEmpty ? fr : en;
 }
 
 /// Un mot du vocabulaire.
@@ -31,6 +41,8 @@ class VocabWord {
     required this.en,
     required this.script,
     required this.examples,
+    this.senses = const [],
+    this.freq,
   });
 
   factory VocabWord.fromJson(Map<String, dynamic> json) => VocabWord(
@@ -46,6 +58,8 @@ class VocabWord {
                 ?.map((e) => Example.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
+        senses: (json['senses'] as List?)?.cast<String>() ?? const [],
+        freq: json['freq'] as int?,
       );
 
   final String id;
@@ -69,6 +83,24 @@ class VocabWord {
   final String script;
   final List<Example> examples;
 
+  /// Les autres sens du mot, en anglais, quand il en a plusieurs.
+  ///
+  /// [en] porte le premier, ceux-ci viennent après, dans l'ordre de JMdict qui
+  /// met le sens courant en tête. Le français n'y figure pas : sa ligne ne
+  /// découpe pas les sens, elle les aplatit tous.
+  final List<String> senses;
+
+  /// Bande de fréquence JMdict : 1 pour les 500 mots les plus courants de la
+  /// presse, 48 pour les 500 derniers des 24 000 relevés. `null` au-delà.
+  ///
+  /// Sert à montrer les mots utiles d'abord quand on apprend. Le tirage d'une
+  /// partie chronométrée reste au hasard : deux scores ne se comparent que
+  /// s'ils sont tirés dans le même sac.
+  final int? freq;
+
+  /// Les mots sans bande passent après ceux qui en ont une.
+  int get freqRank => freq ?? 99;
+
   bool get hasKanjiForm => word != kana;
 }
 
@@ -83,6 +115,7 @@ class KanjiEntry {
     required this.grade,
     required this.jlpt,
     required this.wordIds,
+    this.french = const [],
   });
 
   factory KanjiEntry.fromJson(Map<String, dynamic> json) => KanjiEntry(
@@ -94,12 +127,17 @@ class KanjiEntry {
         grade: json['grade'] as int?,
         jlpt: json['jlpt'] as int?,
         wordIds: (json['words'] as List?)?.cast<String>() ?? const [],
+        french: (json['fr'] as List?)?.cast<String>() ?? const [],
       );
 
   final String kanji;
   final List<String> on;
   final List<String> kun;
   final List<String> meanings;
+
+  /// Les mêmes sens en français : KANJIDIC2 en donne pour presque tous.
+  final List<String> french;
+
   final int? strokes;
   final int? grade;
 
@@ -172,6 +210,7 @@ class QuizItem {
     this.note,
     this.examples = const [],
     this.related = const [],
+    this.senses = const [],
   });
 
   final String id;
@@ -212,6 +251,12 @@ class QuizItem {
   final String? note;
 
   final List<Example> examples;
+
+  /// Les autres sens, en anglais : voir [VocabWord.senses].
+  final List<String> senses;
+
+  /// Tous les sens anglais, le principal en tête.
+  List<String> get allSenses => [if (en.isNotEmpty) en, ...senses];
 
   /// Mots du vocabulaire rattachés (utilisé par le mode kanji).
   final List<VocabWord> related;

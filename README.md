@@ -13,10 +13,16 @@ embarquées, la progression reste dans le navigateur.
 - **2 989 mots** : 702 au N5, 623 au N4, 1 664 au N3, dont 231 en katakana.
   Le niveau se choisit avant la partie.
 - **Sens en français et en anglais**, tirés de JMdict, pas d'une traduction
-  automatique.
-- **2 794 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
-  s'écrit, puis entièrement en kana pour pouvoir la lire.
-- **1 293 kanji**, dont les 79 du N5, avec lectures on et kun.
+  automatique. Un mot qui veut dire plusieurs choses les montre toutes :
+  1 652 mots portent au moins deux sens.
+- **2 881 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
+  s'écrit, puis entièrement en kana pour pouvoir la lire. Neuf sur dix sont
+  traduites en français, le reste en anglais.
+- **1 281 kanji**, dont les 79 du N5, avec lectures on et kun et leurs sens
+  en français.
+- **Mots courants d'abord quand on apprend** : JMdict classe les 24 000 mots
+  les plus fréquents de la presse en bandes de 500, et le mode
+  d'apprentissage suit ce classement au lieu de l'ordre des kana.
 - **Chrono réglable** : 1, 3, 5, 10 ou 15 minutes. Le classement sépare les
   durées et les réglages, deux parties ne se comparent que si elles sont
   comparables.
@@ -97,7 +103,7 @@ sont dans `lib/src/core/data/particle_rules.dart`.
 
 Les scripts téléchargent leurs sources et les mettent en cache dans
 `tool/.cache/`. `build_data.py` reconstruit la lecture kana de chaque phrase
-d'exemple à partir des lectures annotées du Tanaka Corpus, complétées par
+d'exemple à partir des lectures annotées de Tatoeba, complétées par
 UniDic. `tool/meaning_overrides.json` corrige à la main les rares entrées que
 JMdict ne couvre pas.
 
@@ -110,12 +116,16 @@ Chaque poussée sur `main` compile le site et le publie sur GitHub Pages via
 
 - Vocabulaire : [open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks)
   et [jlpt-vocab-api](https://github.com/wkei/jlpt-vocab-api).
-- Phrases d'exemple : [Tanaka Corpus](https://www.edrdg.org/wiki/index.php/Tanaka_Corpus)
-  via Tatoeba, CC BY 2.0 FR.
+- Phrases d'exemple, leurs traductions et leurs lectures annotées :
+  [Tatoeba](https://tatoeba.org/), CC BY 2.0 FR. Tatoeba régénère chaque
+  semaine l'annotation du Tanaka Corpus, qui ne bouge plus chez l'EDRDG.
 - Sens français et anglais : [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html)
   via [jmdict-simplified](https://github.com/scriptin/jmdict-simplified),
-  EDRDG, CC BY-SA 4.0.
-- Kanji : [kanji-data](https://github.com/davidluzgouveia/kanji-data), dérivé de
-  KANJIDIC2, CC BY-SA 3.0.
+  EDRDG, CC BY-SA 4.0. Les bandes de fréquence viennent du XML d'origine, que
+  la version simplifiée réduit à un drapeau « courant » oui ou non.
+- Kanji : [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project),
+  EDRDG, CC BY-SA 4.0. Leur niveau JLPT vient de
+  [kanji-data](https://github.com/davidluzgouveia/kanji-data) : KANJIDIC2 ne
+  donne que l'ancienne échelle à quatre niveaux.
 - Police : [Noto Sans JP](https://github.com/notofonts/noto-cjk), SIL Open Font
   License 1.1 (`assets/fonts/OFL.txt`).

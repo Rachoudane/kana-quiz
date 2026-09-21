@@ -9,8 +9,9 @@ import '../core/models/models.dart';
 /// au suivant, sans faute possible. Le mot revient ensuite à intervalles
 /// croissants, et il faut le retrouver seul.
 ///
-/// Les mots arrivent dans l'ordre du niveau, pas au hasard : on n'apprend pas
-/// une liste en la mélangeant.
+/// Les mots arrivent dans l'ordre du niveau puis de leur fréquence, pas au
+/// hasard : on n'apprend pas une liste en la mélangeant, et on n'apprend pas
+/// あいさつ avant ある.
 class LearningMode extends QuizMode {
   const LearningMode();
 
@@ -63,11 +64,15 @@ class LearningMode extends QuizMode {
       script: context.option('script', 'all'),
       fromLevel: context.level,
     );
-    // Le plus accessible d'abord, et un ordre stable d'une partie à l'autre :
-    // reprendre l'apprentissage doit reprendre là où il en était.
+    // Le plus accessible d'abord, puis le plus courant, et un ordre stable
+    // d'une partie à l'autre : reprendre l'apprentissage doit reprendre là où
+    // il en était. Sans la fréquence, la liste partait dans l'ordre des kana
+    // et faisait apprendre あいさつ avant ある.
     words.sort((a, b) {
       final byLevel = b.level.compareTo(a.level);
-      return byLevel != 0 ? byLevel : a.id.compareTo(b.id);
+      if (byLevel != 0) return byLevel;
+      final byFreq = a.freqRank.compareTo(b.freqRank);
+      return byFreq != 0 ? byFreq : a.id.compareTo(b.id);
     });
     // Les questions gardent l'identifiant du mode de lecture : lire un mot
     // reste lire un mot, les statistiques n'ont pas à se dédoubler.
