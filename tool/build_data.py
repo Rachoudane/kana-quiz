@@ -588,11 +588,14 @@ def load_examples(spoken):
                 continue
             # Le champ entre parenthèses n'est pas toujours une lecture : le
             # corpus y met parfois l'identifiant JMdict du mot, 前(#1392580).
+            # C'est alors mieux qu'une lecture — il nomme l'entrée exacte, et
+            # les 62 685 identifiants du corpus existent tous dans JMdict.
+            named = None
             if reading and reading.startswith("#"):
-                reading = None
-            lemmas.append((head, sense, head, reading))
+                named, reading = reading[1:], None
+            lemmas.append((head, sense, head, reading, named))
             if reading:
-                lemmas.append((reading, sense, head, reading))
+                lemmas.append((reading, sense, head, reading, named))
             if HAS_KANJI.search(head):
                 # La lecture du corpus d'abord ; à défaut celle de JMdict, la
                 # plus probable pour cette graphie. 火曜日 n'est jamais annoté
@@ -615,8 +618,10 @@ def load_examples(spoken):
                     readings[shown] = kana
         idx = len(sentences)
         sentences.append((jp, pair.get("eng", ""), pair.get("fra", ""), readings))
-        for lemma, sense, head, reading in set(lemmas):
-            index.setdefault(lemma, []).append((idx, sense, head, reading))
+        for lemma, sense, head, reading, named in set(lemmas):
+            index.setdefault(lemma, []).append(
+                (idx, sense, head, reading, named)
+            )
     return sentences, index, derived
 
 
@@ -813,7 +818,7 @@ def literal_examples(word, sentences, kana_line, limit=2):
 
 
 def pick_examples(keys, kana, own, regular, positions, sentences, index,
-                  kana_line, stem_noun=None, limit=2):
+                  kana_line, entry_id=None, stem_noun=None, limit=2):
     """Phrases où le mot est employé, à l'un des sens que la fiche affiche.
 
     Le corpus numérote le sens de chaque mot annoté, et ce numéro suit l'ordre
@@ -831,6 +836,9 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
     l'écarter faisait perdre les phrases où le mot s'écrit autrement. La
     lecture reste donc interrogée en dernier, et seulement pour les phrases
     dont le sens annoté est l'un de ceux qu'on affiche.
+
+    Quand le corpus nomme l'entrée JMdict — il le fait pour 62 685 de ses
+    jetons — plus rien n'est à deviner et le reste des garde-fous ne sert pas.
 
     Le lemme annoté doit être une graphie du mot : はし ramenait les phrases
     de 橋 par sa lecture, et leur numéro de sens tombait juste par hasard, deux
@@ -870,8 +878,14 @@ def pick_examples(keys, kana, own, regular, positions, sentences, index,
     candidates = []
     from_noun = set()
     for key, by_reading in lookups:
-        for idx, tagged, head, said in index.get(key, []):
+        for idx, tagged, head, said, named in index.get(key, []):
             if idx in seen or head not in allowed:
+                continue
+            # Quand le corpus nomme l'entrée, il n'y a plus rien à deviner :
+            # 靴ひもがとけた est annoté 解ける(#1198910), « se défaire », que
+            # JMdict range ailleurs que 溶ける, « fondre », dont 解ける est
+            # pourtant une graphie.
+            if named and entry_id and named != entry_id:
                 continue
             if said and HAS_KANJI.search(head) and kata_to_hira(said) != spoken:
                 continue
@@ -1136,6 +1150,7 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         ]
         examples = pick_examples(
             keys, kana, own, regular, shown, sentences, index, kana_line,
+            entry_id=entry_id,
             stem_noun=(
                 display[:-2] if suru and display.endswith("する") else None
             ),

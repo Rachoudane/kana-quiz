@@ -170,6 +170,12 @@ void main() {
     // Un verbe en する lit le sens que JMdict marque comme tel : le premier
     // sens de チェック est le motif à carreaux.
     expect(word('チェックする').en, contains('check, inspection'));
+    // Le corpus nomme parfois l'entrée JMdict : 靴ひもがとけた est annoté
+    // 解ける(#1198910), « se défaire », et illustrait 溶ける, « fondre »,
+    // dont 解ける est pourtant une graphie.
+    for (final example in word('とける').examples) {
+      expect(example.jp, isNot(contains('靴ひも')));
+    }
     expect(word('しょうたいする').fr, contains('inviter'));
 
     // Une phrase d'exemple parle du mot, pas de son homophone. Ce qui le
