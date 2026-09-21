@@ -204,6 +204,17 @@ def load_jmdict(lang):
             k.get("common") for k in entry["kanji"]
         )
         kanas = [k["text"] for k in entry["kana"]]
+        # La lecture garde son rang, son drapeau « courante » et la graphie à
+        # laquelle elle se limite. `appliesToKanji` vaut ["*"] quand elle vaut
+        # pour toutes : le prendre au pied de la lettre n'en laissait aucune.
+        spoken = [
+            (
+                k["text"],
+                bool(k.get("common")),
+                tuple(t for t in (k.get("appliesToKanji") or ()) if t != "*"),
+            )
+            for k in entry["kana"]
+        ]
         kanjis = [k["text"] for k in entry["kanji"]]
         # Les graphies de l'entrée servent à écarter, plus bas, les écritures
         # d'un autre mot que les listes source ont rangées sous la même
@@ -211,11 +222,21 @@ def load_jmdict(lang):
         # dit si la graphie s'écrit encore : 為る est une graphie de する comme
         # de なる, mais plus personne ne l'écrit, et chercher des exemples
         # dessus mélangeait les deux verbes.
+        # Le second drapeau dit si l'okurigana est régulier : 先き est une
+        # écriture courante de さき, mais son okurigana est irrégulier (`io`)
+        # et on ne peut rien en déduire — il ramenait le radical de さき à さ,
+        # que contient n'importe quelle phrase disant なさい.
         writings = [
-            (k["text"], not (set(k.get("tags") or []) & RARE_KANJI))
+            (
+                k["text"],
+                not (set(k.get("tags") or []) & RARE_KANJI),
+                "io" not in (k.get("tags") or []),
+            )
             for k in entry["kanji"]
         ]
-        entries[entry["id"]] = (common, senses, writings)
+        # Les lectures servent à lire les mots que le corpus annote sans
+        # donner leur lecture, voir `reading_map`.
+        entries[entry["id"]] = (common, senses, writings, spoken)
         for kana in kanas:
             by_kana.setdefault(kana, []).append(entry["id"])
             for kanji in kanjis:
@@ -224,9 +245,43 @@ def load_jmdict(lang):
 
 
 def writings_of(index, entry_id):
-    """Graphies de l'entrée : (texte, encore en usage). Vide si introuvable."""
+    """Graphies : (texte, encore en usage, okurigana régulier). Vide sinon."""
     record = index[0].get(entry_id)
     return record[2] if record else []
+
+
+def reading_map(index):
+    """Graphie -> sa lecture, quand elle n'en a qu'une.
+
+    Sert à lire les mots que le corpus annote sans donner leur lecture. Une
+    lecture courante l'emporte sur une lecture rare, ce qui suffit à trancher
+    お母さん entre おかあさん et おかーさん. Ce qui reste ambigu est laissé de
+    côté : deviner la lecture de 時 revient à choisir entre とき et じ, et le
+    corpus donne justement la sienne quand elle compte.
+
+    La restriction de graphie est respectée : une lecture qui ne vaut que pour
+    une écriture ne déteint pas sur les autres.
+    """
+    out = {}
+    for _entry_id, record in index[0].items():
+        for writing, _usual, _regular in record[2]:
+            ranked = out.setdefault(writing, [])
+            for rank, (text, common, applies) in enumerate(record[3]):
+                if applies and writing not in applies:
+                    continue
+                ranked.append((0 if common else 1, rank, text))
+    resolved = {}
+    for writing, ranked in out.items():
+        texts = [text for _c, _r, text in sorted(set(ranked))]
+        common = [
+            text for level, _r, text in sorted(set(ranked)) if level == 0
+        ]
+        # Une graphie qui garde plusieurs lectures plausibles n'est pas
+        # comblée : 時 vaut とき et じ, et 夜の八時 se lisait よるのはちとき.
+        choice = common or texts
+        if len(set(choice)) == 1:
+            resolved[writing] = choice[0]
+    return resolved
 
 
 STOP_WORDS = {
@@ -348,6 +403,14 @@ def senses_for(index, entry_id, limit=3):
 TOKEN_RE = re.compile(r"^([^()\[\]{}~|]+)(?:\(([^)]*)\))?(?:\[(\d+)\])?(?:\{([^}]*)\})?")
 
 
+def surface_stem(head, reading):
+    """Lecture du lemme privée de l'okurigana : 会う(あう) donne あ."""
+    i = 0
+    while i < len(head) and i < len(reading) and head[-1 - i] == reading[-1 - i]:
+        i += 1
+    return reading[: len(reading) - i]
+
+
 def surface_reading(head, reading, surface):
     """Lecture de la forme fléchie, déduite de la lecture du lemme.
 
@@ -359,10 +422,13 @@ def surface_reading(head, reading, surface):
         i += 1
     stem_head = head[: len(head) - i]
     stem_reading = reading[: len(reading) - i]
+    if surface == head or surface == stem_head:
+        # L'okurigana peut ne pas être écrit sans cesser d'être prononcé :
+        # 祭り(まつり) s'écrit aussi 祭, et se lit toujours まつり. Le rendre
+        # comme le radical donnait まつ.
+        return reading
     if surface.startswith(stem_head):
         return stem_reading + surface[len(stem_head):]
-    if surface == head:
-        return reading
     return None
 
 
@@ -412,11 +478,16 @@ def tatoeba_indices():
     return out
 
 
-def load_examples():
+def load_examples(spoken):
     """Phrases (japonais, anglais, français) + index lemme -> phrases.
 
     Chaque entrée de l'index retient le numéro de sens annoté par le corpus,
     `する[1]` contre `する[2]` : sans lui, une phrase illustre un homonyme.
+
+    Chaque phrase retient aussi la lecture de ses mots, pour la ligne en kana.
+    Le corpus ne la donne que s'il doit lever une ambiguïté, et `spoken` — les
+    lectures de JMdict par graphie — comble le reste : sans lui お母さん était
+    découpé en お + 母 + さん et se lisait おははさん.
 
     Une phrase sans aucune traduction ne sert à rien et n'est pas gardée.
     """
@@ -436,6 +507,7 @@ def load_examples():
 
     sentences = []   # (japonais, anglais, français, {surface: lecture})
     index = {}
+    derived = set()  # graphies dont la lecture est déduite, donc à confirmer
     # Les identifiants sont triés : le fichier de Tatoeba n'est pas garanti
     # dans l'ordre, et deux constructions doivent donner le même jeu.
     for sentence_id in sorted(indices, key=int):
@@ -453,57 +525,171 @@ def load_examples():
                 continue
             head, reading, sense, surface = m.groups()
             sense = int(sense) if sense else None
-            lemmas.append((head, sense, head))
-            if reading and not reading.startswith("#"):
-                lemmas.append((reading, sense, head))
-                if HAS_KANJI.search(head):
-                    kana = surface_reading(head, reading, surface or head)
-                    if kana and not HAS_KANJI.search(kana):
-                        readings[surface or head] = kana
+            # Le corpus annote parfois un mot que la phrase ne contient pas :
+            # あなたの名前は何ですか。 a été raccourci en 名前は何ですか。 et
+            # garde son 貴方(あなた), qui remplissait la fiche あなた avec une
+            # phrase où le mot n'apparaît plus.
+            if (surface or head) not in jp:
+                continue
+            # Le champ entre parenthèses n'est pas toujours une lecture : le
+            # corpus y met parfois l'identifiant JMdict du mot, 前(#1392580).
+            if reading and reading.startswith("#"):
+                reading = None
+            lemmas.append((head, sense, head, reading))
+            if reading:
+                lemmas.append((reading, sense, head, reading))
+            if HAS_KANJI.search(head):
+                # La lecture du corpus d'abord ; à défaut celle de JMdict, la
+                # plus probable pour cette graphie. 火曜日 n'est jamais annoté
+                # et se lisait かようひ, le rendaku perdu au découpage.
+                said = reading or spoken.get(head)
+                shown = surface or head
+                kana = None
+                if said and shown != head:
+                    kana = surface_reading(head, said, shown)
+                    if kana:
+                        derived.add(shown)
+                elif said:
+                    kana = said
+                if not kana:
+                    # La forme écrite dans la phrase a parfois sa propre
+                    # entrée : le corpus annote 貸間 là où la phrase écrit
+                    # 貸し間, que l'okurigana du lemme ne sait pas dériver.
+                    kana = spoken.get(shown)
+                if kana and not HAS_KANJI.search(kana):
+                    readings[shown] = kana
         idx = len(sentences)
         sentences.append((jp, pair.get("eng", ""), pair.get("fra", ""), readings))
-        for lemma, sense, head in set(lemmas):
-            index.setdefault(lemma, []).append((idx, sense, head))
-    return sentences, index
+        for lemma, sense, head, reading in set(lemmas):
+            index.setdefault(lemma, []).append((idx, sense, head, reading))
+    return sentences, index, derived
 
 
 class KanaLine:
     """Transcrit une phrase japonaise en kana, sans kanji."""
 
-    def __init__(self):
+    def __init__(self, spoken=None, derived=()):
         import fugashi
 
         self.tagger = fugashi.Tagger()
+        self.spoken = spoken or {}
         self.cache = {}
+        # Les graphies dont la lecture a été déduite d'un lemme, et non lue
+        # telle quelle : ce sont les seules à faire confirmer.
+        self.derived = set(derived)
 
     def build(self, sentence, annotated):
+        """Ligne en kana de la phrase, ou None si une lecture manque.
+
+        Les mots annotés par le corpus sont posés d'abord, du plus long au
+        plus court, et fugashi ne transcrit que ce qu'ils laissent. L'ordre
+        compte : appliqué après le découpage, お母さん ne correspondait à
+        aucun jeton — fugashi en fait お + 母 + さん — et la ligne annonçait
+        おははさん. Même chose pour 火曜日, coupé en 火曜 + 日, qui perdait son
+        rendaku et se lisait かようひ.
+        """
         key = (sentence, tuple(sorted(annotated.items())))
         if key in self.cache:
             return self.cache[key]
+        derived = {
+            reading for text, reading in annotated.items()
+            if text in self.derived
+        }
+        spans = sorted(
+            (text for text in annotated if text), key=len, reverse=True
+        )
         out = []
-        for word in self.tagger(sentence):
-            surface = word.surface
-            if not HAS_KANJI.search(surface):
-                out.append(surface)
-                continue
-            if surface in annotated:
-                out.append(annotated[surface])
-                continue
-            reading = getattr(word.feature, "kana", None) or getattr(
-                word.feature, "pron", None
-            )
-            if not reading:
-                self.cache[key] = None
-                return None
-            out.append(kata_to_hira(reading))
+        gap = []
+
+        def flush():
+            if not gap:
+                return True
+            text = "".join(gap)
+            del gap[:]
+            for word in self.tagger(text):
+                if not HAS_KANJI.search(word.surface):
+                    out.append(word.surface)
+                    continue
+                reading = getattr(word.feature, "kana", None) or getattr(
+                    word.feature, "pron", None
+                )
+                if not reading:
+                    return False
+                out.append(kata_to_hira(reading))
+            return True
+
+        i = 0
+        while i < len(sentence):
+            span, reading = self.longest_at(sentence, i, spans, annotated)
+            if span:
+                if not flush():
+                    self.cache[key] = None
+                    return None
+                out.append(reading)
+                i += len(span)
+            else:
+                gap.append(sentence[i])
+                i += 1
+        if not flush():
+            self.cache[key] = None
+            return None
         line = "".join(out)
         result = None if HAS_KANJI.search(line) else line
+        if result and not self.agrees(sentence, derived):
+            result = None
         self.cache[key] = result
         return result
 
+    def longest_at(self, sentence, i, spans, annotated):
+        """Le plus long mot lisible qui commence ici, et sa lecture.
 
-def pick_examples(keys, kana, own, positions, sentences, index, kana_line,
-                  limit=2):
+        Le corpus passe en premier, mais il découpe parfois plus fin qu'il ne
+        faudrait : 夜の八時です y est annoté 八 時(とき), et la ligne annonçait
+        はちとき. JMdict connaît 八時, sans ambiguïté, et l'analyse la plus
+        longue l'emporte. À longueur égale c'est le corpus qui tranche, lui
+        seul sait de quel mot parle la phrase.
+        """
+        for span in spans:
+            if not sentence.startswith(span, i):
+                continue
+            # Une graphie de JMdict strictement plus longue corrige le
+            # découpage ; hors de là on ne touche à rien, le corpus reste le
+            # seul à savoir de quel mot la phrase parle.
+            for size in range(len(sentence) - i, len(span), -1):
+                wide = sentence[i:i + size]
+                if wide in self.spoken:
+                    return wide, self.spoken[wide]
+            return span, annotated[span]
+        return None, None
+
+    def agrees(self, sentence, derived):
+        """Vrai si fugashi confirme les lectures déduites par okurigana.
+
+        La lecture d'un lemme se reporte sur sa forme fléchie en isolant
+        l'okurigana commun : 忙しい(いそがしい) donne いそがしかった. Le procédé
+        suppose que le radical se lit pareil, ce qui est faux des irréguliers —
+        来る(くる) sur 来て donnait くて au lieu de きて.
+
+        Les lectures que le corpus ou JMdict donnent telles quelles ne passent
+        pas par là et n'ont rien à confirmer. Pour les autres, fugashi sert de
+        second avis : un désaccord ne dit pas qui a tort, et une ligne dont on
+        n'est pas sûr ne vaut pas d'être montrée. Le mot garde ses autres
+        phrases.
+        """
+        if not derived:
+            return True
+        said = []
+        for word in self.tagger(sentence):
+            reading = getattr(word.feature, "kana", None) or getattr(
+                word.feature, "pron", None
+            )
+            said.append(kata_to_hira(reading or word.surface))
+        said = "".join(said)
+        return all(reading in said for reading in derived)
+
+
+def pick_examples(keys, kana, own, regular, positions, sentences, index,
+                  kana_line, limit=2):
     """Phrases où le mot est employé, à l'un des sens que la fiche affiche.
 
     Le corpus numérote le sens de chaque mot annoté, et ce numéro suit l'ordre
@@ -522,13 +708,29 @@ def pick_examples(keys, kana, own, positions, sentences, index, kana_line,
     lecture reste donc interrogée en dernier, et seulement pour les phrases
     dont le sens annoté est l'un de ceux qu'on affiche.
 
-    Dernier garde-fou, le lemme annoté doit être une graphie du mot : はし
-    ramenait les phrases de 橋 par sa lecture, et leur numéro de sens tombait
-    juste par hasard, deux entrées différentes numérotant chacune à partir
-    de 1.
+    Le lemme annoté doit être une graphie du mot : はし ramenait les phrases
+    de 橋 par sa lecture, et leur numéro de sens tombait juste par hasard, deux
+    entrées différentes numérotant chacune à partir de 1. Le kana ne compte
+    comme graphie que si le mot s'écrit en kana : sinon la particule か
+    illustrait 家 « -ien », に illustrait 二 et まい illustrait 枚.
+
+    Le numéro de sens ne suffit pas non plus à départager deux homographes,
+    pour la même raison : 月 vaut つき, げつ ou がつ, chacun sa propre entrée
+    numérotée à partir de 1, et les phrases de la lune remplissaient la fiche
+    du mois. La lecture annotée doit donc être celle de la fiche — pas une
+    autre lecture de la même entrée : 辛い réunit からい et つらい, et la fiche
+    « épicé » se voyait illustrée par « pénible ».
+
+    La lecture est facultative dans le corpus, et son absence ne prouve rien :
+    右[01] n'en a pas, et le seul 右 annoté l'est en ひだり, par erreur. Une
+    phrase sans lecture annotée reste donc retenue.
     """
     wanted = {p + 1 for p in positions}
-    allowed = set(keys) | set(own) | {kana}
+    written = set(keys) | set(own)
+    allowed = set(written)
+    if not any(HAS_KANJI.search(text) for text in written):
+        allowed.add(kana)
+    spoken = kata_to_hira(kana)
     lookups = [(key, False) for key in keys]
     if kana not in keys:
         lookups.append((kana, True))
@@ -536,8 +738,10 @@ def pick_examples(keys, kana, own, positions, sentences, index, kana_line,
     seen = set()
     candidates = []
     for key, by_reading in lookups:
-        for idx, tagged, head in index.get(key, []):
+        for idx, tagged, head, said in index.get(key, []):
             if idx in seen or head not in allowed:
+                continue
+            if said and HAS_KANJI.search(head) and kata_to_hira(said) != spoken:
                 continue
             shown = tagged in wanted or (tagged is None and 1 in wanted)
             if not shown and tagged is not None and wanted:
@@ -561,10 +765,24 @@ def pick_examples(keys, kana, own, positions, sentences, index, kana_line,
     # écartée plus bas : il faut en garder assez sous la main pour ne pas
     # laisser un mot sans exemple à cause des premières.
     out = []
+    # Le radical de la lecture, okurigana mis à part : あう vaut pour あえて,
+    # からい pour からかった. Une lecture sans kanji n'a rien à retrancher.
+    stem = kata_to_hira(kana)
+    for text in regular:
+        if HAS_KANJI.search(text):
+            stem = min(stem, surface_stem(text, kata_to_hira(kana)), key=len)
+
     for _shown, _translated, _length, idx in candidates[:40]:
         jp, en, fr, annotated = sentences[idx]
         line = kana_line.build(jp, annotated)
         if not line:
+            continue
+        # Dernière vérification, et la seule que l'utilisateur voit : la fiche
+        # doit se lire dans sa propre ligne en kana. 辛い « épicé » était
+        # illustré par つらい « pénible », 九 « く » par きゅうページ, et あちら
+        # par あっち — à chaque fois la fiche annonçait une lecture que la
+        # phrase en dessous ne prononçait pas.
+        if stem and stem not in kata_to_hira(line):
             continue
         example = {"jp": jp, "kana": line, "en": en}
         if fr:
@@ -694,7 +912,7 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         # elles seules : les listes source regroupent par lecture, si bien que
         # する traînait 刷る et 擦る, qui sont deux autres mots.
         written = writings_of(english, entry_id)
-        own = {text for text, _usual in written}
+        own = {text for text, _usual, _regular in written}
         forms = [display] + [
             f for f in forms if f in own and f != display and f != word
         ]
@@ -754,11 +972,16 @@ def build_vocab(sentences, index, kana_line, french, english, overrides,
         # illustraient l'autre.
         keys = [display] if display == word else [display, word]
         keys += [
-            text for text, usual in written
+            text for text, usual, _regular in written
             if usual and text not in keys and text != kana
         ]
+        # Le radical de la lecture ne se déduit que d'un okurigana régulier.
+        regular = [display] + [
+            text for text, usual, ok in written
+            if usual and ok and text not in (display, kana)
+        ]
         examples = pick_examples(
-            keys, kana, own, shown, sentences, index, kana_line
+            keys, kana, own, regular, shown, sentences, index, kana_line
         )
         if examples:
             entry["examples"] = examples
@@ -888,8 +1111,9 @@ def main():
     english = load_jmdict("eng")
     frequency = load_frequency()
     sys.stderr.write("chargement des exemples\n")
-    sentences, index = load_examples()
-    kana_line = KanaLine()
+    spoken = reading_map(english)
+    sentences, index, derived = load_examples(spoken)
+    kana_line = KanaLine(spoken, derived)
 
     words, missing_fr = build_vocab(
         sentences, index, kana_line, french, english, overrides, frequency,

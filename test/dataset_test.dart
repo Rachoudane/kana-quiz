@@ -68,6 +68,63 @@ void main() {
     }
   });
 
+  test('la fiche se lit dans la ligne en kana de ses exemples', () {
+    // Le défaut le plus visible que puissent avoir les exemples : la fiche
+    // annonce une lecture, et la phrase en dessous en prononce une autre.
+    // 月 « mois » était illustré par つきは昇った, la lune ; 家 « -ien » par
+    // la particule か ; 辛い « épicé » par つらい, « pénible ». Les trois
+    // passaient parce que le corpus numérote les sens de chaque entrée à
+    // partir de 1, et que deux homographes tombaient d'accord par hasard.
+    final kanji = RegExp('[一-龯々]');
+    // Radical de la lecture, okurigana mis à part : 会う(あう) laisse あ, qui
+    // couvre あえて comme あった. Un mot écrit en kana n'a rien à retrancher.
+    // Un mot écrit en kana n'a pas d'okurigana à isoler : c'est sa dernière
+    // more qui se conjugue, かかる donnant かかります.
+    const inflected = 'るうくぐすつぬぶむい';
+    String stem(VocabWord word) {
+      var out = word.kana;
+      var written = false;
+      for (final form in {word.word, ...word.forms}) {
+        if (!kanji.hasMatch(form)) continue;
+        written = true;
+        var i = 0;
+        while (i < form.length &&
+            i < word.kana.length &&
+            form[form.length - 1 - i] == word.kana[word.kana.length - 1 - i]) {
+          i++;
+        }
+        final short = word.kana.substring(0, word.kana.length - i);
+        if (short.length < out.length) out = short;
+      }
+      if (!written &&
+          out.length > 1 &&
+          inflected.contains(out[out.length - 1])) {
+        out = out.substring(0, out.length - 1);
+      }
+      return out;
+    }
+
+    // La phrase garde le katakana qu'elle écrit : あそこ s'y lit アソコ, et
+    // c'est la même lecture.
+    String hira(String text) => String.fromCharCodes([
+      for (final c in text.runes)
+        c >= 0x30A1 && c <= 0x30F6 ? c - 0x60 : c,
+    ]);
+
+    for (final word in data.words) {
+      final root = hira(stem(word));
+      if (root.isEmpty) continue;
+      for (final example in word.examples) {
+        expect(
+          hira(example.kana).contains(root),
+          isTrue,
+          reason:
+              '${word.kana} « ${word.fr} » illustré par « ${example.kana} »',
+        );
+      }
+    }
+  });
+
   test('les exemples sont traduits en français dans leur grande majorité', () {
     final examples = [for (final w in data.words) ...w.examples];
     final french = examples.where((e) => e.fr.isNotEmpty).length;
