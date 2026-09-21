@@ -4,7 +4,6 @@ import 'package:kana_quiz/src/core/data/particle_rules.dart';
 import 'package:kana_quiz/src/core/models/models.dart';
 import 'package:kana_quiz/src/core/storage/progress_store.dart';
 import 'package:kana_quiz/src/core/romaji/romaji_reading.dart';
-import 'package:kana_quiz/src/modes/kana_reading_mode.dart';
 import 'package:kana_quiz/src/modes/modes.dart';
 
 void main() {
