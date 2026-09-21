@@ -5,11 +5,11 @@ class Example {
   const Example(this.jp, this.kana, this.en, [this.fr = '']);
 
   factory Example.fromJson(Map<String, dynamic> json) => Example(
-        json['jp'] as String,
-        json['kana'] as String,
-        json['en'] as String,
-        json['fr'] as String? ?? '',
-      );
+    json['jp'] as String,
+    json['kana'] as String,
+    json['en'] as String,
+    json['fr'] as String? ?? '',
+  );
 
   /// Phrase telle qu'elle s'écrit, avec ses kanji.
   final String jp;
@@ -46,21 +46,22 @@ class VocabWord {
   });
 
   factory VocabWord.fromJson(Map<String, dynamic> json) => VocabWord(
-        id: json['id'] as String,
-        kana: json['kana'] as String,
-        word: json['word'] as String,
-        forms: (json['forms'] as List?)?.cast<String>() ?? const [],
-        level: json['level'] as int,
-        fr: json['fr'] as String,
-        en: json['en'] as String,
-        script: json['script'] as String,
-        examples: (json['examples'] as List?)
-                ?.map((e) => Example.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        senses: (json['senses'] as List?)?.cast<String>() ?? const [],
-        freq: json['freq'] as int?,
-      );
+    id: json['id'] as String,
+    kana: json['kana'] as String,
+    word: json['word'] as String,
+    forms: (json['forms'] as List?)?.cast<String>() ?? const [],
+    level: json['level'] as int,
+    fr: json['fr'] as String,
+    en: json['en'] as String,
+    script: json['script'] as String,
+    examples:
+        (json['examples'] as List?)
+            ?.map((e) => Example.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+    senses: (json['senses'] as List?)?.cast<String>() ?? const [],
+    freq: json['freq'] as int?,
+  );
 
   final String id;
 
@@ -119,16 +120,16 @@ class KanjiEntry {
   });
 
   factory KanjiEntry.fromJson(Map<String, dynamic> json) => KanjiEntry(
-        kanji: json['kanji'] as String,
-        on: (json['on'] as List).cast<String>(),
-        kun: (json['kun'] as List).cast<String>(),
-        meanings: (json['meanings'] as List).cast<String>(),
-        strokes: json['strokes'] as int?,
-        grade: json['grade'] as int?,
-        jlpt: json['jlpt'] as int?,
-        wordIds: (json['words'] as List?)?.cast<String>() ?? const [],
-        french: (json['fr'] as List?)?.cast<String>() ?? const [],
-      );
+    kanji: json['kanji'] as String,
+    on: (json['on'] as List).cast<String>(),
+    kun: (json['kun'] as List).cast<String>(),
+    meanings: (json['meanings'] as List).cast<String>(),
+    strokes: json['strokes'] as int?,
+    grade: json['grade'] as int?,
+    jlpt: json['jlpt'] as int?,
+    wordIds: (json['words'] as List?)?.cast<String>() ?? const [],
+    french: (json['fr'] as List?)?.cast<String>() ?? const [],
+  );
 
   final String kanji;
   final List<String> on;

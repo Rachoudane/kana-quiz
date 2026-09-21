@@ -319,8 +319,10 @@ class _QuizPageState extends State<QuizPage> {
               item.prompt,
               key: const Key('prompt'),
               textAlign: TextAlign.center,
-              style: promptStyle(context, promptSize(item))
-                  .copyWith(height: 1.5),
+              style: promptStyle(
+                context,
+                promptSize(item),
+              ).copyWith(height: 1.5),
             )
           else
             FittedBox(
@@ -342,10 +344,9 @@ class _QuizPageState extends State<QuizPage> {
             textAlign: TextAlign.center,
             textInputAction: TextInputAction.done,
             style: item.answeredInKana
-                ? japaneseStyle(theme.textTheme.bodyLarge).copyWith(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w600,
-                  )
+                ? japaneseStyle(
+                    theme.textTheme.bodyLarge,
+                  ).copyWith(fontSize: 26, fontWeight: FontWeight.w600)
                 : romajiStyle.copyWith(
                     fontSize: 26,
                     fontWeight: FontWeight.w600,
@@ -375,8 +376,8 @@ class _QuizPageState extends State<QuizPage> {
             child: correcting
                 ? _correction(context, item)
                 : teaching
-                    ? _lesson(context, item)
-                    : _hint(context),
+                ? _lesson(context, item)
+                : _hint(context),
           ),
         ],
       ),
@@ -418,8 +419,9 @@ class _QuizPageState extends State<QuizPage> {
             item.expected.first,
             textAlign: TextAlign.center,
             style: item.answeredInKana
-                ? japaneseStyle(theme.textTheme.titleLarge)
-                    .copyWith(fontWeight: FontWeight.w700, color: accent)
+                ? japaneseStyle(
+                    theme.textTheme.titleLarge,
+                  ).copyWith(fontWeight: FontWeight.w700, color: accent)
                 : romajiStyle.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -435,9 +437,9 @@ class _QuizPageState extends State<QuizPage> {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: japaneseStyle(theme.textTheme.bodySmall).copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: japaneseStyle(
+              theme.textTheme.bodySmall,
+            ).copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -460,8 +462,9 @@ class _QuizPageState extends State<QuizPage> {
             item.expected.take(3).join('  /  '),
             textAlign: TextAlign.center,
             style: item.answeredInKana
-                ? japaneseStyle(theme.textTheme.titleLarge)
-                    .copyWith(fontWeight: FontWeight.w700, color: failure)
+                ? japaneseStyle(
+                    theme.textTheme.titleLarge,
+                  ).copyWith(fontWeight: FontWeight.w700, color: failure)
                 : romajiStyle.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,

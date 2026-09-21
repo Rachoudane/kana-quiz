@@ -153,8 +153,9 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
               run.isOpenEnded
                   ? '${(run.accuracy * 100).round()} %'
                   : '${run.correct}',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Expanded(
@@ -259,7 +260,8 @@ class _SparklinePainter extends CustomPainter {
     final path = Path();
     for (var i = 0; i < values.length; i++) {
       final x = size.width * i / (values.length - 1);
-      final y = size.height - ((values[i] - minimum) / span) * (size.height - 8) - 4;
+      final y =
+          size.height - ((values[i] - minimum) / span) * (size.height - 8) - 4;
       i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
     }
 

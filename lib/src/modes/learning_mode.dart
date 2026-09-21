@@ -38,25 +38,25 @@ class LearningMode extends QuizMode {
 
   @override
   List<ModeOption> get options => const [
-        ModeOption(
-          id: 'level',
-          label: 'Niveau',
-          choices: [
-            ModeChoice('5', 'N5'),
-            ModeChoice('4', 'N5 + N4'),
-            ModeChoice('3', 'N5 + N4 + N3'),
-          ],
-        ),
-        ModeOption(
-          id: 'script',
-          label: 'Écriture',
-          choices: [
-            ModeChoice('all', 'Hiragana + katakana'),
-            ModeChoice('hiragana', 'Hiragana seul'),
-            ModeChoice('katakana', 'Katakana seul'),
-          ],
-        ),
-      ];
+    ModeOption(
+      id: 'level',
+      label: 'Niveau',
+      choices: [
+        ModeChoice('5', 'N5'),
+        ModeChoice('4', 'N5 + N4'),
+        ModeChoice('3', 'N5 + N4 + N3'),
+      ],
+    ),
+    ModeOption(
+      id: 'script',
+      label: 'Écriture',
+      choices: [
+        ModeChoice('all', 'Hiragana + katakana'),
+        ModeChoice('hiragana', 'Hiragana seul'),
+        ModeChoice('katakana', 'Katakana seul'),
+      ],
+    ),
+  ];
 
   @override
   List<QuizItem> buildItems(ModeContext context) {

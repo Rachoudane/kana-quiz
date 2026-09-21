@@ -33,8 +33,8 @@ class QuizController extends ChangeNotifier {
     required this.durationSeconds,
     required List<QuizItem> items,
     required this.store,
-  })  : _items = items,
-        remainingSeconds = durationSeconds {
+  }) : _items = items,
+       remainingSeconds = durationSeconds {
     _current = _nextItem();
     teaching = _teaches(_current);
     if (teaching) _say(_current);
@@ -133,8 +133,7 @@ class QuizController extends ChangeNotifier {
   /// Secondes affichées : ce qui reste, ou ce qui s'est écoulé.
   int get clockSeconds => untimed ? elapsedSeconds : remainingSeconds;
 
-  double get progress =>
-      untimed ? 0 : 1 - remainingSeconds / durationSeconds;
+  double get progress => untimed ? 0 : 1 - remainingSeconds / durationSeconds;
 
   QuizItem _nextItem() {
     if (_cursor >= _items.length) {
@@ -148,8 +147,7 @@ class QuizController extends ChangeNotifier {
   ///
   /// Seuls les modes à passage unique s'arrêtent ainsi, et seulement sans
   /// chrono : ailleurs la liste se remélange et le tour recommence.
-  bool get _exhausted =>
-      untimed && mode.singlePass && _cursor >= _items.length;
+  bool get _exhausted => untimed && mode.singlePass && _cursor >= _items.length;
 
   void _tick(Timer timer) {
     if (phase == QuizPhase.finished) return;

@@ -153,8 +153,9 @@ class ItemRevealCard extends StatelessWidget {
                         child: Text(
                           item.expected.take(3).join(' / '),
                           style: item.answeredInKana
-                              ? japaneseStyle(theme.textTheme.bodyMedium)
-                                  .copyWith(
+                              ? japaneseStyle(
+                                  theme.textTheme.bodyMedium,
+                                ).copyWith(
                                   color: accent,
                                   fontWeight: FontWeight.w600,
                                 )
@@ -198,8 +199,9 @@ class ItemRevealCard extends StatelessWidget {
                       ),
                       child: Text(
                         item.note!,
-                        style: japaneseStyle(theme.textTheme.bodyMedium)
-                            .copyWith(height: 1.45),
+                        style: japaneseStyle(
+                          theme.textTheme.bodyMedium,
+                        ).copyWith(height: 1.45),
                       ),
                     ),
                   ],

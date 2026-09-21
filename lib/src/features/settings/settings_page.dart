@@ -91,11 +91,11 @@ class SettingsPage extends StatelessWidget {
                   Text(
                     Speech.available
                         ? 'Le mot est prononcé quand sa lecture apparaît : '
-                            'réponse validée, correction affichée, mot '
-                            'présenté. Jamais pendant que tu cherches, ce '
-                            'serait donner la réponse. La voix est celle du '
-                            'navigateur : sa qualité dépend de la machine, et '
-                            "certaines n'ont aucune voix japonaise."
+                              'réponse validée, correction affichée, mot '
+                              'présenté. Jamais pendant que tu cherches, ce '
+                              'serait donner la réponse. La voix est celle du '
+                              'navigateur : sa qualité dépend de la machine, et '
+                              "certaines n'ont aucune voix japonaise."
                         : 'Ce navigateur ne propose pas de synthèse vocale.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -127,7 +127,9 @@ class SettingsPage extends StatelessWidget {
                       ),
                       OutlinedButton.icon(
                         onPressed: () => _reset(context),
-                        style: OutlinedButton.styleFrom(foregroundColor: failure),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: failure,
+                        ),
                         icon: const Icon(Icons.delete_outline),
                         label: const Text('Tout effacer'),
                       ),
@@ -171,9 +173,9 @@ class SettingsPage extends StatelessWidget {
         Text(
           strict
               ? 'Une seule graphie est correcte : celle de la transcription '
-                  "Hepburn. Elle s'affiche sur la fiche après chaque mot."
+                    "Hepburn. Elle s'affiche sur la fiche après chaque mot."
               : 'Les autres systèmes sont acceptés (syasin, huzi, kocchi, '
-                  'tokyo). La graphie de référence reste affichée sur la fiche.',
+                    'tokyo). La graphie de référence reste affichée sur la fiche.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

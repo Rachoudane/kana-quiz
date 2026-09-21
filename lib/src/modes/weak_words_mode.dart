@@ -43,7 +43,8 @@ class WeakWordsMode extends QuizMode {
   bool get singlePass => true;
 
   @override
-  String get instruction => 'Tape la réponse : rōmaji ou kana selon la question.';
+  String get instruction =>
+      'Tape la réponse : rōmaji ou kana selon la question.';
 
   @override
   List<QuizItem> buildItems(ModeContext context) {

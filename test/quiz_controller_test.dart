@@ -21,14 +21,14 @@ void main() {
   const kanaConfig = {'level': '5', 'script': 'all'};
 
   QuizController build({int duration = 600}) => QuizController(
-        mode: const KanaReadingMode(),
-        config: kanaConfig,
-        durationSeconds: duration,
-        items: const KanaReadingMode().buildItems(
-          ModeContext(data: data, config: kanaConfig),
-        ),
-        store: store,
-      );
+    mode: const KanaReadingMode(),
+    config: kanaConfig,
+    durationSeconds: duration,
+    items: const KanaReadingMode().buildItems(
+      ModeContext(data: data, config: kanaConfig),
+    ),
+    store: store,
+  );
 
   test('le mode apprentissage montre le mot avant de le demander', () {
     const mode = LearningMode();
@@ -138,8 +138,11 @@ void main() {
     quiz.giveUp();
     expect(quiz.mistakes, 1);
     expect(quiz.correcting, isTrue);
-    expect(identical(quiz.current, item), isTrue,
-        reason: 'on reste sur le mot raté');
+    expect(
+      identical(quiz.current, item),
+      isTrue,
+      reason: 'on reste sur le mot raté',
+    );
 
     quiz.onInputChanged('zzz');
     expect(identical(quiz.current, item), isTrue);
@@ -228,8 +231,11 @@ void main() {
     );
     final item = items.firstWhere((i) => i.readings.length > 1);
     for (final reading in item.readings) {
-      expect(item.evaluate(reading.reference), AnswerState.complete,
-          reason: '${item.prompt} -> ${reading.reference}');
+      expect(
+        item.evaluate(reading.reference),
+        AnswerState.complete,
+        reason: '${item.prompt} -> ${reading.reference}',
+      );
     }
   });
 
@@ -375,7 +381,6 @@ void main() {
     expect(quiz.input, bonne, reason: 'la frappe a été prise pour un reliquat');
   });
 
-
   test('Entrée sur une réponse déjà juste la valide au lieu d\'abandonner', () {
     final quiz = build();
     final question = quiz.current;
@@ -401,28 +406,30 @@ void main() {
     expect(quiz.current.id, question.id, reason: 'il faut recopier');
   });
 
-  test('une partie sans limite compte à l\'endroit et ne s\'arrête pas seule',
-      () {
-    const mode = ParticlesMode();
-    const config = {'focus': 'all'};
-    final quiz = QuizController(
-      mode: mode,
-      config: config,
-      durationSeconds: openEnded,
-      items: mode.buildItems(ModeContext(data: data, config: config)),
-      store: store,
-    );
+  test(
+    'une partie sans limite compte à l\'endroit et ne s\'arrête pas seule',
+    () {
+      const mode = ParticlesMode();
+      const config = {'focus': 'all'};
+      final quiz = QuizController(
+        mode: mode,
+        config: config,
+        durationSeconds: openEnded,
+        items: mode.buildItems(ModeContext(data: data, config: config)),
+        store: store,
+      );
 
-    expect(quiz.untimed, isTrue);
-    expect(quiz.clockSeconds, 0);
-    expect(quiz.progress, 0, reason: 'rien à jauger sans fin annoncée');
+      expect(quiz.untimed, isTrue);
+      expect(quiz.clockSeconds, 0);
+      expect(quiz.progress, 0, reason: 'rien à jauger sans fin annoncée');
 
-    for (var i = 0; i < 3; i++) {
-      quiz.onInputChanged(quiz.current.expected.first);
-    }
-    expect(quiz.phase, QuizPhase.running);
-    expect(quiz.correct, 3);
-  });
+      for (var i = 0; i < 3; i++) {
+        quiz.onInputChanged(quiz.current.expected.first);
+      }
+      expect(quiz.phase, QuizPhase.running);
+      expect(quiz.correct, 3);
+    },
+  );
 
   test('arrêter une partie sans limite l\'enregistre', () async {
     const mode = ParticlesMode();
@@ -446,43 +453,47 @@ void main() {
     expect(store.best(quiz.result!.boardKey), isNull);
   });
 
-  test('sans chrono, les mots qui résistent s\'arrêtent avec la liste',
-      () async {
-    const mode = WeakWordsMode();
-    final rate = data.words.first;
-    final quiz = QuizController(
-      mode: mode,
-      config: mode.defaultConfig,
-      durationSeconds: openEnded,
-      items: mode.buildItems(ModeContext(
-        data: data,
+  test(
+    'sans chrono, les mots qui résistent s\'arrêtent avec la liste',
+    () async {
+      const mode = WeakWordsMode();
+      final rate = data.words.first;
+      final quiz = QuizController(
+        mode: mode,
         config: mode.defaultConfig,
-        stats: {rate.id: const ItemStat(4, 3)},
-      )),
-      store: store,
-    );
+        durationSeconds: openEnded,
+        items: mode.buildItems(
+          ModeContext(
+            data: data,
+            config: mode.defaultConfig,
+            stats: {rate.id: const ItemStat(4, 3)},
+          ),
+        ),
+        store: store,
+      );
 
-    expect(quiz.phase, QuizPhase.running);
-    quiz.onInputChanged(quiz.current.expected.first);
+      expect(quiz.phase, QuizPhase.running);
+      quiz.onInputChanged(quiz.current.expected.first);
 
-    // La liste ne se remélange pas : elle est finie, la partie aussi.
-    expect(quiz.phase, QuizPhase.finished);
-    expect(quiz.correct, 1);
-  });
+      // La liste ne se remélange pas : elle est finie, la partie aussi.
+      expect(quiz.phase, QuizPhase.finished);
+      expect(quiz.correct, 1);
+    },
+  );
 
   test('un classement sans limite se range à la précision', () async {
     const key = 'particles|0|focus=all';
     RunResult run(int correct, int mistakes, DateTime at) => RunResult(
-          modeId: 'particles',
-          config: const {'focus': 'all'},
-          durationSeconds: openEnded,
-          finishedAt: at,
-          correct: correct,
-          mistakes: mistakes,
-          bestStreak: correct,
-          missedLabels: const [],
-          elapsedSeconds: 600,
-        );
+      modeId: 'particles',
+      config: const {'focus': 'all'},
+      durationSeconds: openEnded,
+      finishedAt: at,
+      correct: correct,
+      mistakes: mistakes,
+      bestStreak: correct,
+      missedLabels: const [],
+      elapsedSeconds: 600,
+    );
 
     // Beaucoup de réponses, précision moyenne.
     final laborieuse = run(60, 40, DateTime(2026, 9, 14, 10));
@@ -495,8 +506,11 @@ void main() {
     await store.saveRun(propre, const {});
     await store.saveRun(courte, const {});
 
-    expect(store.board(key).first.finishedAt, propre.finishedAt,
-        reason: 'la précision classe, pas le volume');
+    expect(
+      store.board(key).first.finishedAt,
+      propre.finishedAt,
+      reason: 'la précision classe, pas le volume',
+    );
     expect(store.best(key)!.finishedAt, propre.finishedAt);
     expect(courte.isRanked, isFalse);
     expect(store.isRecord(courte), isFalse);

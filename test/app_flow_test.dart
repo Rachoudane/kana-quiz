@@ -75,8 +75,9 @@ void main() {
     expect(find.text('Kana Quiz'), findsOneWidget);
   });
 
-  testWidgets('la partie rappelle le mode et les réglages choisis',
-      (tester) async {
+  testWidgets('la partie rappelle le mode et les réglages choisis', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.textContaining('Commencer'));
@@ -191,19 +192,22 @@ void main() {
 
   testWidgets('une phrase sans kanji ne se répète pas', (tester) async {
     const phrase = 'シャワーにするわ。';
-    await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(
-        body: ExampleBlock(
-          example: Example(phrase, phrase, 'I will take a shower.'),
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ExampleBlock(
+            example: Example(phrase, phrase, 'I will take a shower.'),
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.text(phrase), findsOneWidget);
   });
 
-  testWidgets('le champ récupère le focus si on clique ailleurs',
-      (tester) async {
+  testWidgets('le champ récupère le focus si on clique ailleurs', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.textContaining('Commencer'));
     await advance(tester);
@@ -223,8 +227,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('rien ne signale la direction pendant la frappe',
-      (tester) async {
+  testWidgets('rien ne signale la direction pendant la frappe', (tester) async {
     await pumpApp(tester);
     await tester.tap(find.textContaining('Commencer'));
     await advance(tester);
@@ -257,8 +260,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('les réglages expliquent les graphies acceptées',
-      (tester) async {
+  testWidgets('les réglages expliquent les graphies acceptées', (tester) async {
     await pumpApp(tester);
 
     await tester.tap(find.byIcon(Icons.tune));
@@ -270,8 +272,9 @@ void main() {
     expect(find.text('koohii'), findsOneWidget);
   });
 
-  testWidgets('le mode des particules pose une phrase et donne la raison',
-      (tester) async {
+  testWidgets('le mode des particules pose une phrase et donne la raison', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.text('Particules'));
@@ -287,8 +290,7 @@ void main() {
 
     final phrase = tester.widget<Text>(find.byKey(const Key('prompt'))).data!;
     expect(phrase.contains('＿'), isTrue, reason: phrase);
-    final slot =
-        dataset.particles.firstWhere((s) => s.blanked == phrase);
+    final slot = dataset.particles.firstWhere((s) => s.blanked == phrase);
 
     await tester.enterText(find.byType(TextField), slot.answer);
     await advance(tester);
@@ -310,8 +312,9 @@ void main() {
     expect(find.textContaining('bonnes réponses en'), findsOneWidget);
   });
 
-  testWidgets('une particule écrite à l\'IME se valide en une seule Entrée',
-      (tester) async {
+  testWidgets('une particule écrite à l\'IME se valide en une seule Entrée', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.text('Particules'));
@@ -337,8 +340,11 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await advance(tester);
 
-    expect(find.text('recopie la réponse'), findsNothing,
-        reason: 'la conversion a été prise pour un abandon');
+    expect(
+      find.text('recopie la réponse'),
+      findsNothing,
+      reason: 'la conversion a été prise pour un abandon',
+    );
     expect(
       tester.widget<Text>(find.byKey(const Key('prompt'))).data,
       isNot(phrase),
@@ -389,8 +395,11 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await advance(tester);
 
-    expect(find.text('recopie la réponse'), findsNothing,
-        reason: 'resté bloqué en correction');
+    expect(
+      find.text('recopie la réponse'),
+      findsNothing,
+      reason: 'resté bloqué en correction',
+    );
     expect(
       tester.widget<Text>(find.byKey(const Key('prompt'))).data,
       isNot(phrase),

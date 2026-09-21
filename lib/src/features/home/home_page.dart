@@ -21,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   late final Map<String, Map<String, String>> _configs = {
     for (final mode in quizModes) mode.id: {...mode.defaultConfig},
   };
+
   /// La durée se retient par mode : chacun garde la sienne, et celle de
   /// départ est celle que le mode juge cohérente avec ce qu'il fait.
   late final Map<String, int> _durations = {
@@ -137,16 +138,16 @@ class _HomePageState extends State<HomePage> {
         ),
         IconButton(
           tooltip: 'Scores',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ScoreboardPage()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ScoreboardPage())),
           icon: const Icon(Icons.leaderboard_outlined),
         ),
         IconButton(
           tooltip: 'Réglages',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsPage()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
           icon: const Icon(Icons.tune),
         ),
       ],
@@ -163,8 +164,7 @@ class _HomePageState extends State<HomePage> {
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 3 : 2;
         const gap = 10.0;
-        final width =
-            (constraints.maxWidth - gap * (columns - 1)) / columns;
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
@@ -255,9 +255,9 @@ class _HomePageState extends State<HomePage> {
         SectionTitle(
           'Dernières parties',
           trailing: TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScoreboardPage()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const ScoreboardPage())),
             child: const Text('Tout voir'),
           ),
         ),
@@ -275,8 +275,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 Text(
                   '${run.correct}',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
@@ -324,7 +325,9 @@ class _HomePageState extends State<HomePage> {
     // sur une liste vide.
     final reason = _mode.emptyReason(_context());
     if (reason != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(reason)));
       return;
     }
     Navigator.of(context).push(

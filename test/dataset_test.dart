@@ -177,8 +177,7 @@ void main() {
       ModeContext(data: data, config: const {'level': '5', 'script': 'all'}),
     );
     final ranks = [
-      for (final item in items.take(40))
-        data.wordById(item.id)?.freqRank ?? 99,
+      for (final item in items.take(40)) data.wordById(item.id)?.freqRank ?? 99,
     ];
     // Les quarante premiers mots enseignés sont des mots courants, pas le
     // début de l'ordre des kana.
@@ -402,7 +401,10 @@ void main() {
 
     final ferme = data.particles.firstWhere((s) => !s.isOpen);
     final autre = ferme.answer == 'を' ? 'に' : 'を';
-    expect(ParticlesMode.itemFor(ferme).evaluate(autre), isNot(AnswerState.complete));
+    expect(
+      ParticlesMode.itemFor(ferme).evaluate(autre),
+      isNot(AnswerState.complete),
+    );
   });
 
   test('la sélection par particule ne garde que ce qu\'elle annonce', () {
@@ -432,15 +434,19 @@ void main() {
     // données, contrairement à un numéro de ligne.
     expect(slot.id, startsWith('p'));
     expect(data.particleById(slot.id)?.sentence, slot.sentence);
-    expect(data.particles.map((s) => s.id).toSet().length,
-        data.particles.length);
+    expect(
+      data.particles.map((s) => s.id).toSet().length,
+      data.particles.length,
+    );
 
     const mode = WeakWordsMode();
-    final items = mode.buildItems(ModeContext(
-      data: data,
-      config: mode.defaultConfig,
-      stats: {slot.id: const ItemStat(3, 2)},
-    ));
+    final items = mode.buildItems(
+      ModeContext(
+        data: data,
+        config: mode.defaultConfig,
+        stats: {slot.id: const ItemStat(3, 2)},
+      ),
+    );
 
     expect(items.map((i) => i.id), contains(slot.id));
     expect(items.first.prompt, slot.blanked);

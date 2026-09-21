@@ -9,7 +9,7 @@ import '../models/models.dart';
 /// Un seul chargement par session ; les modes piochent ensuite dedans.
 class Dataset {
   Dataset._(this.words, this.kanji, this.particles, this.attributions)
-      : _wordsById = {for (final w in words) w.id: w};
+    : _wordsById = {for (final w in words) w.id: w};
 
   final List<VocabWord> words;
   final List<KanjiEntry> kanji;
@@ -33,8 +33,9 @@ class Dataset {
   static Future<Dataset> _load() async {
     final vocabRaw = await rootBundle.loadString('assets/data/vocab.json');
     final kanjiRaw = await rootBundle.loadString('assets/data/kanji.json');
-    final particlesRaw =
-        await rootBundle.loadString('assets/data/particles.json');
+    final particlesRaw = await rootBundle.loadString(
+      'assets/data/particles.json',
+    );
     final vocabJson = jsonDecode(vocabRaw) as Map<String, dynamic>;
     final kanjiJson = jsonDecode(kanjiRaw) as Map<String, dynamic>;
     final particlesJson = jsonDecode(particlesRaw) as Map<String, dynamic>;
@@ -49,10 +50,7 @@ class Dataset {
       _particles(particlesJson),
       // particles.json ne s'ajoute pas ici : ses phrases sont celles du
       // Tanaka Corpus, déjà créditées par la ligne du vocabulaire.
-      [
-        vocabJson['attribution'] as String,
-        kanjiJson['attribution'] as String,
-      ],
+      [vocabJson['attribution'] as String, kanjiJson['attribution'] as String],
     );
     _instance = dataset;
     return dataset;

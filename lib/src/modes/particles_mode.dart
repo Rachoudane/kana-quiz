@@ -37,17 +37,17 @@ class ParticlesMode extends QuizMode {
 
   @override
   List<ModeOption> get options => const [
-        ModeOption(
-          id: 'focus',
-          label: 'Particules',
-          choices: [
-            ModeChoice('all', 'Toutes'),
-            ModeChoice('waga', 'は et が'),
-            ModeChoice('place', 'に · で · へ'),
-            ModeChoice('other', 'を · の · と · から'),
-          ],
-        ),
-      ];
+    ModeOption(
+      id: 'focus',
+      label: 'Particules',
+      choices: [
+        ModeChoice('all', 'Toutes'),
+        ModeChoice('waga', 'は et が'),
+        ModeChoice('place', 'に · で · へ'),
+        ModeChoice('other', 'を · の · と · から'),
+      ],
+    ),
+  ];
 
   /// Particules retenues pour chaque sélection.
   static const Map<String, Set<String>> _focus = {
@@ -81,15 +81,15 @@ class ParticlesMode extends QuizMode {
   /// La phrase complète est montrée après coup : lire la phrase juste en
   /// entier vaut mieux que de ne relire que la particule.
   static QuizItem itemFor(ParticleSlot slot) => QuizItem(
-        id: slot.id,
-        prompt: slot.blanked,
-        promptScript: 'sentence',
-        answerScript: 'kana',
-        readings: slot.answers.map(RomajiReading.of).toList(),
-        fr: '',
-        en: slot.translation,
-        secondary: slot.sentence,
-        detail: particleLabel(slot),
-        note: particleNote(slot),
-      );
+    id: slot.id,
+    prompt: slot.blanked,
+    promptScript: 'sentence',
+    answerScript: 'kana',
+    readings: slot.answers.map(RomajiReading.of).toList(),
+    fr: '',
+    en: slot.translation,
+    secondary: slot.sentence,
+    detail: particleLabel(slot),
+    note: particleNote(slot),
+  );
 }

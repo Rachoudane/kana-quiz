@@ -18,19 +18,20 @@ class RunResult {
   }) : elapsedSeconds = elapsedSeconds ?? durationSeconds;
 
   factory RunResult.fromJson(Map<String, dynamic> json) => RunResult(
-        modeId: json['mode'] as String,
-        config: (json['config'] as Map).cast<String, String>(),
-        durationSeconds: json['duration'] as int,
-        finishedAt: DateTime.fromMillisecondsSinceEpoch(json['at'] as int),
-        correct: json['correct'] as int,
-        mistakes: json['mistakes'] as int,
-        bestStreak: json['streak'] as int? ?? 0,
-        missedLabels: (json['missed'] as List?)?.cast<String>() ?? const [],
-        elapsedSeconds: json['elapsed'] as int?,
-      );
+    modeId: json['mode'] as String,
+    config: (json['config'] as Map).cast<String, String>(),
+    durationSeconds: json['duration'] as int,
+    finishedAt: DateTime.fromMillisecondsSinceEpoch(json['at'] as int),
+    correct: json['correct'] as int,
+    mistakes: json['mistakes'] as int,
+    bestStreak: json['streak'] as int? ?? 0,
+    missedLabels: (json['missed'] as List?)?.cast<String>() ?? const [],
+    elapsedSeconds: json['elapsed'] as int?,
+  );
 
   final String modeId;
   final Map<String, String> config;
+
   /// Durée annoncée, `0` pour une partie sans limite.
   final int durationSeconds;
 
@@ -44,16 +45,16 @@ class RunResult {
   final List<String> missedLabels;
 
   Map<String, dynamic> toJson() => {
-        'mode': modeId,
-        'config': config,
-        'duration': durationSeconds,
-        'at': finishedAt.millisecondsSinceEpoch,
-        'correct': correct,
-        'mistakes': mistakes,
-        'streak': bestStreak,
-        'missed': missedLabels,
-        'elapsed': elapsedSeconds,
-      };
+    'mode': modeId,
+    'config': config,
+    'duration': durationSeconds,
+    'at': finishedAt.millisecondsSinceEpoch,
+    'correct': correct,
+    'mistakes': mistakes,
+    'streak': bestStreak,
+    'missed': missedLabels,
+    'elapsed': elapsedSeconds,
+  };
 
   int get attempts => correct + mistakes;
 
@@ -205,7 +206,9 @@ class ProgressStore extends ChangeNotifier {
   bool isRecord(RunResult run) {
     if (!run.isRanked) return false;
     final previous = _runs
-        .where((r) => r.boardKey == run.boardKey && r.finishedAt != run.finishedAt)
+        .where(
+          (r) => r.boardKey == run.boardKey && r.finishedAt != run.finishedAt,
+        )
         .where((r) => r.isRanked);
     if (previous.isEmpty) return true;
     if (run.isOpenEnded) {
@@ -241,12 +244,12 @@ class ProgressStore extends ChangeNotifier {
   }
 
   String exportJson() => const JsonEncoder.withIndent('  ').convert({
-        'version': 1,
-        'exportedAt': DateTime.now().toIso8601String(),
-        'runs': _runs.map((r) => r.toJson()).toList(),
-        'itemStats': _stats.map((k, v) => MapEntry(k, [v.seen, v.missed])),
-        'settings': _settings,
-      });
+    'version': 1,
+    'exportedAt': DateTime.now().toIso8601String(),
+    'runs': _runs.map((r) => r.toJson()).toList(),
+    'itemStats': _stats.map((k, v) => MapEntry(k, [v.seen, v.missed])),
+    'settings': _settings,
+  });
 
   Future<bool> importJson(String raw) async {
     try {
