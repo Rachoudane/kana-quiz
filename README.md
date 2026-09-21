@@ -13,13 +13,13 @@ embarquées, la progression reste dans le navigateur.
 - **2 989 mots** : 702 au N5, 623 au N4, 1 664 au N3, dont 231 en katakana.
   Le niveau se choisit avant la partie.
 - **Sens en français et en anglais**, tirés de JMdict. Un mot qui veut dire
-  plusieurs choses les montre toutes : 1 652 mots portent au moins deux sens,
+  plusieurs choses les montre toutes : 1 635 mots portent au moins deux sens,
   chacun dans les deux langues. Le sens principal vient du JMdict français ;
-  les 2 642 sens suivants, que JMdict ne traduit pas, sont traduits de son
+  les 2 617 sens suivants, que JMdict ne traduit pas, sont traduits de son
   anglais et figés dans `tool/sense_fr_overrides.json`, relisible et
   corrigeable à la main.
-- **2 895 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
-  s'écrit, puis entièrement en kana pour pouvoir la lire. 90 % des phrases
+- **2 889 mots avec phrase d'exemple**, donnée deux fois : telle qu'elle
+  s'écrit, puis entièrement en kana pour pouvoir la lire. 88 % des phrases
   sont traduites en français, le reste en anglais.
 - **1 281 kanji**, dont les 79 du N5, avec lectures on et kun et leurs sens
   en français — tous, les 51 que KANJIDIC2 ne traduit pas étant écrits à la
@@ -70,7 +70,8 @@ statistiques n'ont pas à changer pour en ajouter un.
 - `Kanji → lecture` — un kanji, on tape une de ses lectures.
 - `Français → kana` — un sens, on écrit le mot en kana, à l'IME.
 - `Particules` — une phrase à trou, on écrit la particule et la fiche donne
-  la raison du choix.
+  la raison du choix. 3 943 trous sur 2 685 phrases, rattachés à 25 motifs
+  grammaticaux nommés.
 - `Apprendre le vocabulaire` — le mot est montré, puis redemandé plus loin.
 - `Mots qui résistent` — rejoue ce qui a déjà été raté.
 
@@ -107,11 +108,14 @@ sont dans `lib/src/core/data/particle_rules.dart`.
 
 Les scripts téléchargent leurs sources et les mettent en cache dans
 `tool/.cache/`. `build_data.py` reconstruit la lecture kana de chaque phrase
-d'exemple à partir des lectures annotées de Tatoeba, complétées par
-UniDic. `tool/meaning_overrides.json` corrige à la main les rares entrées que
-JMdict ne couvre pas, `tool/kanji_fr_overrides.json` les kanji que KANJIDIC2
-ne traduit pas, et `tool/sense_fr_overrides.json` porte le français des sens
-supplémentaires. Ces deux derniers fichiers ne viennent pas d'un dictionnaire :
+d'exemple à partir des lectures annotées de Tatoeba, complétées par JMdict
+quand une graphie n'a qu'une lecture possible, UniDic ne servant que pour ce
+qu'aucun des deux ne couvre : découpé par UniDic seul, お母さん devient
+お + 母 + さん et se lit おははさん. `tool/meaning_overrides.json` écrit à la
+main les sens que JMdict laisse de côté ou donne au nom — 招待する y vaut
+« inviter » et non « invitation » —, `tool/kanji_fr_overrides.json` les kanji
+que KANJIDIC2 ne traduit pas, et `tool/sense_fr_overrides.json` porte le
+français des sens supplémentaires. Ces deux derniers fichiers ne viennent pas d'un dictionnaire :
 ils s'éditent à la main et la construction les relit à chaque fois.
 
 ## Déploiement
